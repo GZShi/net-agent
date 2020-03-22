@@ -5,7 +5,7 @@
 const path = require('path')
 
 const publicStaticHost = ''
-const publicPrefix = '/gss-dashboard'
+const publicPrefix = '/remotework'
 const distPath = '../../dist' + publicPrefix
 
 module.exports = {
