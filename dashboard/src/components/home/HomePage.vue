@@ -194,7 +194,7 @@ export default {
             privateKey: this.config.privateKey,
             clientName: this.config.clientName,
             channelName: this.config.channelName,
-            portproxy: [{
+            portProxy: [{
               listen: `localhost:${this.config.portproxy.port}`,
               targetAddr: this.config.portproxy.targetAddr
             }]
