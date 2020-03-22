@@ -16,19 +16,25 @@ type totpInfo struct {
 	URL     string `json:"url"`
 }
 
+type portProxyInfo struct {
+	Listen      string `json:"listen"`
+	TargetAddr  string `json:"targetAddr"`
+	ChannelName string `json:"channelName"`
+}
+
 type config struct {
-	Mode      string `json:"mode"`
-	Addr      string `json:"addr"`
-	Secret    string `json:"secret"`
-	WhiteList string `json:"whiteList"` // TODO:可访问白名单
+	Mode      string          `json:"mode"` // server/agent/visitor
+	Addr      string          `json:"addr"` // ip:port
+	Secret    string          `json:"secret"`
+	WhiteList string          `json:"whiteList"` // TODO:可访问白名单
+	PortProxy []portProxyInfo `json:"portProxy"`
 
 	// client only
 	ClientName  string `json:"clientName"`
 	ChannelName string `json:"channelName"`
 
 	// server only
-	PortProxy string     `json:"portProxy"`
-	TotpList  []totpInfo `json:"totpList"`
+	TotpList []totpInfo `json:"totpList"`
 }
 
 func readJSON(path string) ([]byte, error) {
@@ -43,6 +49,13 @@ func readJSON(path string) ([]byte, error) {
 }
 
 func main() {
+	defer func() {
+		log.Get().Warn("program closed after 12s")
+		<-time.After(time.Second * 12)
+	}()
+
+	log.Get().Info("https://github.com/GZShi/net-agent.git")
+
 	var configPath string
 	flag.StringVar(&configPath, "config", "./config.json", "the path of config file")
 	flag.Parse()
@@ -63,23 +76,23 @@ func main() {
 	log.Get().WithField("mode", cfg.Mode).Info("will run as config.mode")
 
 	switch cfg.Mode {
-	case "client":
+	case "agent":
 		if len(cfg.ClientName) < 3 {
 			log.Get().WithField("clientName", cfg.ClientName).Error("length of config.clientName must >= 3")
-			<-time.After(time.Second * 12)
 			return
 		}
 		if len(cfg.ChannelName) < 3 {
 			log.Get().WithField("channelName", cfg.ChannelName).Error("length of config.channelName must >= 6")
-			<-time.After(time.Second * 12)
 			return
 		}
 		for {
-			runAsClient(&cfg)
+			runAsAgent(&cfg)
 			<-time.After(time.Second * 12)
 		}
 	case "server":
 		runAsServer(&cfg)
+	case "visitor":
+		runAsVisitor(&cfg)
 	default:
 		log.Get().WithField("mode", cfg.Mode).Error("unknown mode")
 	}

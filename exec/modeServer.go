@@ -34,7 +34,7 @@ func runAsServer(cfg *config) {
 	socks5Server := socks5.NewSocks5Server(cfg.Secret, onSocks5Conn)
 
 	initTotp(cfg.TotpList)
-	startPortproxyServer(tunnelCluster, cfg.PortProxy)
+	// startPortproxyServer(tunnelCluster, cfg.PortProxy)
 	setTunnelRoute(httpServer, tunnelCluster)
 
 	// listen

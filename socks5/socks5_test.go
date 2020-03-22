@@ -305,7 +305,7 @@ func TestAuthWithPswd(t *testing.T) {
 }
 
 // 测试总流程
-func TestServeSocks5(t *testing.T) {
+func TestHandleSocks5Request(t *testing.T) {
 	client, server1 := net.Pipe()
 	server2, target := net.Pipe()
 	host := "hello.world.com"
@@ -365,6 +365,6 @@ func TestServeSocks5(t *testing.T) {
 
 	go func() {
 		defer server1.Close()
-		ServeSocks5(server1, server1, server1, "", dialer)
+		HandleSocks5Request(server1, server1, server1, "", dialer)
 	}()
 }

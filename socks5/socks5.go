@@ -243,8 +243,8 @@ func authWithPswd(reader io.Reader, writer io.Writer, secret string) (uname stri
 	return uname, nil
 }
 
-// ServeSocks5 处理socks5代理请求
-func ServeSocks5(
+// HandleSocks5Request 处理socks5代理请求
+func HandleSocks5Request(
 	conn net.Conn,
 	reader io.Reader,
 	writer io.Writer,

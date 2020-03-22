@@ -24,6 +24,6 @@ func (p *Server) Run(listener net.Listener) {
 			break
 		}
 
-		go ServeSocks5(conn, conn, conn, p.secret, p.dialer)
+		go HandleSocks5Request(conn, conn, conn, p.secret, p.dialer)
 	}
 }

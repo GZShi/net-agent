@@ -14,13 +14,22 @@
       "args": ["-config", "../dist/config.server.json"]
     },
     {
-      "name": "Client",
+      "name": "Agent",
       "type": "go",
       "request": "launch",
       "mode": "auto",
       "program": "${workspaceFolder}/exec/main.go",
       "env": {},
       "args": ["-config", "../dist/config.json"]
+    },
+    {
+      "name": "Visitor",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/exec/main.go",
+      "env": {},
+      "args": ["-config", "../dist/config.visitor.json"]
     }
   ]
 }
