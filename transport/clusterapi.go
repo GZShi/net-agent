@@ -6,13 +6,12 @@ import "time"
 func (p *TunnelCluster) GetStatus() interface{} {
 	list := []interface{}{}
 
-	// p.groups.Range(func(_, value interface{}) bool {
-	// 	tList := value.(*TunnelList)
+	p.groups.Range(func(_, value interface{}) bool {
+		tList := value.(*TunnelList)
 
-	// 	// TODO: 重新设计此接口
-	// 	// list = append(list, t.GetStatus())
-	// 	return true
-	// })
+		list = append(list, tList.GetStatus())
+		return true
+	})
 
 	return struct {
 		Now     time.Time     `json:"now"`

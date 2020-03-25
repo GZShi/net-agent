@@ -48,12 +48,13 @@ type Tunnel struct {
 	donePortsMut      sync.Mutex
 	lastHeartbeat     uint32
 
-	created      time.Time
-	finished     time.Time
-	uploadSize   uint64
-	downloadSize uint64
-	uploadPack   uint64
-	downloadPack uint64
+	created       time.Time
+	finished      time.Time
+	heartbeatTime time.Time
+	uploadSize    uint64
+	downloadSize  uint64
+	uploadPack    uint64
+	downloadPack  uint64
 
 	currTransData *Data
 	currTransTime time.Time
@@ -153,6 +154,7 @@ func (t *Tunnel) Serve() {
 		case cmdHeartbeat:
 			go func() {
 				t.lastHeartbeat = uint32(data.ConnID)
+				t.heartbeatTime = time.Now()
 				// 收到心跳包请求，15秒后回应一个心跳包
 				<-time.After(time.Second * 15)
 				t.writeData(newHeartbeatData(data.ConnID + 1))
