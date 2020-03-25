@@ -97,11 +97,12 @@ func NewTunnel(conn net.Conn, name, secret string, randKey []byte, logDetail boo
 		failedPortCount:   0,
 		lastHeartbeat:     0,
 
-		created:      time.Now(),
-		uploadSize:   0,
-		downloadSize: 0,
-		uploadPack:   0,
-		downloadPack: 0,
+		created:       time.Now(),
+		heartbeatTime: time.Now(),
+		uploadSize:    0,
+		downloadSize:  0,
+		uploadPack:    0,
+		downloadPack:  0,
 	}, nil
 }
 
@@ -158,6 +159,11 @@ func (t *Tunnel) Serve() {
 				// 收到心跳包请求，15秒后回应一个心跳包
 				<-time.After(time.Second * 15)
 				t.writeData(newHeartbeatData(data.ConnID + 1))
+			}()
+		case cmdTextMessages:
+			go func() {
+				// 收到来自对端的信息
+				log.Get().WithField("text", string(data.Bytes)).Info("text message from peer")
 			}()
 		}
 	}
@@ -370,4 +376,9 @@ func (t *Tunnel) Dial(sourceAddr, network, addr, userName string) (target net.Co
 
 	wg.Wait()
 	return target, err
+}
+
+// SendTextMessage 向对端发送一条消息，展示在对方控制台上
+func (t *Tunnel) SendTextMessage(text string) {
+	t.writeData(newTextMessageData(t.newConnID(), text))
 }

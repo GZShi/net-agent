@@ -49,16 +49,18 @@ func (p *TunnelCluster) Run(listener net.Listener) {
 
 			tunnel, err := NewTunnel(client, name, p.secret, randKey, false)
 			if err != nil {
+				client.Close()
 				log.Get().WithError(err).Error("create tunnel failed")
 				return
 			}
-			group, _ := p.groups.LoadOrStore(name, NewTunnelList(name))
-			tList := group.(*TunnelList)
-			tList.ZombTunnelCheck(time.Second*30, time.Second*120)
-			tList.Add(tunnel)
-
 			tunnel.conn.Write([]byte{0x00})
 			atomic.AddInt32(&p.activeCount, 1)
+
+			group, _ := p.groups.LoadOrStore(name, NewTunnelList(name))
+			tList := group.(*TunnelList)
+			tList.ZombTunnelCheck(time.Second*5, time.Second*120)
+			tList.Add(tunnel)
+
 			log.Get().WithField("name", name).WithField("addr", client.RemoteAddr()).Info("new tunnel created")
 			tunnel.StartHeartbeat()
 

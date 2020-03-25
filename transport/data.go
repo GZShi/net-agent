@@ -7,6 +7,7 @@ const (
 	cmdData
 	cmdClose
 	cmdHeartbeat
+	cmdTextMessages
 )
 
 // Data 在隧道中传输的数据包
@@ -33,4 +34,8 @@ func newCloseData(connID cid) Data {
 
 func newHeartbeatData(connID cid) Data {
 	return Data{connID, cmdHeartbeat, nil}
+}
+
+func newTextMessageData(connID cid, text string) Data {
+	return Data{connID, cmdTextMessages, []byte(text)}
 }

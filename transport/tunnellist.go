@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,29 +30,41 @@ func NewTunnelList(name string) *TunnelList {
 // ZombTunnelCheck 检查僵尸通道，只允许调用一次
 func (p *TunnelList) ZombTunnelCheck(checkDuration time.Duration, heartbeatTimeout time.Duration) {
 	p.onceDoZombCheck.Do(func() {
-		for {
-			<-time.After(checkDuration)
-			p.listMut.Lock()
-			now := time.Now()
-			size := len(p.list)
-			for i := 0; i < size; i++ {
-				if now.Sub(p.list[i].heartbeatTime) > heartbeatTimeout {
-					t := p.list[i]
-					log.Get().WithFields(logrus.Fields{
-						"name":      t.name,
-						"created":   t.created,
-						"hbeatTime": t.heartbeatTime,
-					}).Warn("zomb tunnel detected")
+		log.Get().WithField("name", p.name).Info("zomb checking starting")
+		go func() {
+			for {
+				<-time.After(checkDuration)
+				p.listMut.Lock()
+				now := time.Now()
+				size := len(p.list)
+				deleted := 0
+				for i := 0; i < size; i++ {
+					hbeatTime := p.list[i].heartbeatTime
+					if now.Sub(hbeatTime) > heartbeatTimeout {
+						t := p.list[i]
+						log.Get().WithFields(logrus.Fields{
+							"name":      t.name,
+							"created":   t.created,
+							"hbeatTime": t.heartbeatTime,
+						}).Warn("zomb tunnel detected")
 
-					// delete tunnel
-					p.list[i] = p.list[size-1]
-					size--
-					i--
+						// delete tunnel
+						p.list[i] = p.list[size-1]
+						size--
+						i--
+						deleted++
+					}
+				}
+				if deleted > 0 {
+					p.list = p.list[:size]
+				}
+				p.listMut.Unlock()
+
+				if deleted > 0 {
+					p.BroadcastTextMessage(fmt.Sprintf("new tunnel join, count=%v", size))
 				}
 			}
-
-			p.listMut.Unlock()
-		}
+		}()
 	})
 }
 
@@ -60,7 +73,9 @@ func (p *TunnelList) Add(t *Tunnel) {
 	if t != nil {
 		p.listMut.Lock()
 		p.list = append(p.list, t)
+		size := len(p.list)
 		p.listMut.Unlock()
+		p.BroadcastTextMessage(fmt.Sprintf("new tunnel join, count=%v", size))
 	}
 }
 
@@ -81,8 +96,24 @@ func (p *TunnelList) Del(t *Tunnel) {
 			p.list[targetIndex] = p.list[size-1]
 			p.list[size-1] = nil
 			p.list = p.list[:size-1]
+			size--
 		}
 		p.listMut.Unlock()
+
+		p.BroadcastTextMessage(fmt.Sprintf("one tunnel leaved, count=%v", size))
+	}
+}
+
+// BroadcastTextMessage 向列表里的所有通道进行广播
+func (p *TunnelList) BroadcastTextMessage(text string) {
+	p.listMut.Lock()
+	list := make([]*Tunnel, len(p.list))
+	copy(list, p.list)
+	p.listMut.Unlock()
+
+	size := len(list)
+	for i := 0; i < size; i++ {
+		list[i].SendTextMessage(text)
 	}
 }
 
