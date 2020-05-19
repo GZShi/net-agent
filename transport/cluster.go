@@ -47,7 +47,7 @@ func (p *TunnelCluster) Run(listener net.Listener) {
 				return
 			}
 
-			tunnel, err := NewTunnel(client, name, p.secret, randKey, false)
+			tunnel, err := NewTunnel(client, name, p.secret, randKey, true, false)
 			if err != nil {
 				client.Close()
 				log.Get().WithError(err).Error("create tunnel failed")
@@ -62,7 +62,6 @@ func (p *TunnelCluster) Run(listener net.Listener) {
 			tList.Add(tunnel)
 
 			log.Get().WithField("name", name).WithField("addr", client.RemoteAddr()).Info("new tunnel created")
-			tunnel.StartHeartbeat()
 
 			// 当tunnel还在工作的时候，会一直在这里block
 			tunnel.Serve()

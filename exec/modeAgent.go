@@ -34,8 +34,7 @@ func runAsAgent(cfg *config) {
 	}
 
 	// auth response
-	// byte1: 成功失败标识
-	// byte2: tunnel-id，服务端保证tunnel-id唯一(todo)
+	// byte1: 成功失败标识。
 	buf := []byte{0x01}
 	if _, err = io.ReadFull(client, buf); err != nil {
 		log.Get().WithError(err).Error("receive bind info failed")
@@ -47,7 +46,7 @@ func runAsAgent(cfg *config) {
 	}
 
 	// tunnel
-	t, err := transport.NewTunnel(client, cfg.ChannelName, cfg.Secret, randKey, true)
+	t, err := transport.NewTunnel(client, cfg.ChannelName, cfg.Secret, randKey, true, true)
 	if err != nil {
 		log.Get().WithError(err).Error("create client failed")
 		return
