@@ -8,7 +8,7 @@ let lastCall = {
   downSize: 0
 }
 export async function getBaseInfo(calcSum=true) {
-  let {now, tunnels} = await get('/gss/admin/base-info')
+  let {now, tunnels} = await get('/reworkapi/admin/base-info')
 
   if (!calcSum) return tunnels
 
@@ -62,7 +62,7 @@ function duration(before, after) {
 }
 
 export async function getActiveConns(flat=true) {
-  let {now, tunnels} = await get('/gss/admin/active-conns')
+  let {now, tunnels} = await get('/reworkapi/admin/active-conns')
 
   if (!flat) return tunnels
 
@@ -93,7 +93,7 @@ export async function queryIpInfo(ip) {
 }
 
 export async function getHistoryConns(vm, flat=true) {
-  let {now, tunnels} = await get('/gss/admin/history-conns')
+  let {now, tunnels} = await get('/reworkapi/admin/history-conns')
 
   if (!flat) return tunnels
 

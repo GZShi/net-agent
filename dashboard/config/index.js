@@ -16,9 +16,10 @@ module.exports = {
     assetsPublicPath: '/',
     proxyTable: {
       
-      '/gss': {
+      '/reworkapi': {
         // target: `http://eval.im:8103`,
-        target: 'https://txy.eval.im',
+        // target: 'https://txy.eval.im',
+        target: `http://localhost:2035`,
         secure: false,
       },
 

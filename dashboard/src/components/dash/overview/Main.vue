@@ -9,7 +9,7 @@
     <div class="main-board">
       <div class="left-info">
         <div class="box">
-          <div class="box-title">通道信息</div>
+          <div class="box-title">Cluster</div>
           <div class="box-body">
             <table class="multi-line">
               <tr v-for="(info, index) in infos" :key="index">
@@ -26,27 +26,10 @@
         </div>
 
         <div class="box">
-          <div class="box-title">流量排名</div>
+          <div class="box-title">Agents</div>
           <div class="box-body">
             <table class="multi-line">
-              <tr v-for="(info, index) in rank.conn" :key="index">
-                <td class="key">{{info.key}}</td>
-                <td class="value">
-                  <ul v-if="Array.isArray(info.value)">
-                    <li v-for="(str, i) in info.value" :key="i">{{str}}</li>
-                  </ul>
-                  <span v-else>{{info.value}}</span>
-                </td>
-              </tr>
-            </table>
-          </div>
-        </div>
-
-        <div class="box">
-          <div class="box-title">连接数排名</div>
-          <div class="box-body">
-            <table class="multi-line">
-              <tr v-for="(info, index) in rank.flow" :key="index">
+              <tr v-for="(info, index) in agents" :key="index">
                 <td class="key">{{info.key}}</td>
                 <td class="value">
                   <ul v-if="Array.isArray(info.value)">
@@ -79,6 +62,7 @@
 
 <script>
 import LineChart from './Linechart'
+import * as api from '@/components/api.js'
 
 export default {
   components: {
@@ -89,11 +73,15 @@ export default {
       infos: [
         { key: '名称', value: 'garden_city'},
         { key: '状态', value: 'running'},
-        { key: '操作系统', value: 'Windows10'},
-        { key: '连接时长', value: '12:23:45'},
-        { key: 'IP地址', value: ['127.0.0.2', '10.254.42.1', '172.254.2.1']},
+        { key: '代理数量', value: '5'},
         { key: '上行流量', value: '200 KB'},
         { key: '下行流量', value: '102 MB'},
+      ],
+      agents: [
+        { key: '1', value: 'shiguozhong(172.254.41.23:1234)' },
+        { key: '2', value: 'client_2(172.254.41.23:2234)' },
+        { key: '3', value: 'testclient(172.254.41.23:2332)' },
+        { key: '4', value: 'viva(172.254.41.23:9293)' },
       ],
       rank: {
         conn: [
@@ -112,6 +100,11 @@ export default {
         ]
       }
 
+    }
+  },
+  methods: {
+    async fetchData() {
+      api.getBaseInfo()
     }
   }
 }
