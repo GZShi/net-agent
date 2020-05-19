@@ -63,7 +63,7 @@ type Tunnel struct {
 var tunnelIDSequence = uint32(0)
 
 // NewTunnel 构造数据隧道
-func NewTunnel(conn net.Conn, name, secret string, randKey []byte, logDetail bool) (*Tunnel, error) {
+func NewTunnel(conn net.Conn, name, secret string, randKey []byte, compress bool, logDetail bool) (*Tunnel, error) {
 	if len(name) <= 6 {
 		return nil, errors.New("tunnal.name must large than 6")
 	}
@@ -81,6 +81,10 @@ func NewTunnel(conn net.Conn, name, secret string, randKey []byte, logDetail boo
 	// 两个流是一样的，因为是读写同时进行，所以需要两个流，否则在数据链比较大时，会出现加解密混乱的bug
 	encStream := cipher.NewCTR(blockCipher, iv[0:blockCipher.BlockSize()])
 	decStream := cipher.NewCTR(blockCipher, iv[0:blockCipher.BlockSize()])
+
+	if compress {
+		conn = NewCompressConn(conn)
+	}
 
 	return &Tunnel{
 		id:                atomic.AddUint32(&tunnelIDSequence, 1),
@@ -136,12 +140,37 @@ func (t *Tunnel) Serve() {
 	// 不断 Read 和 Write，直到连接关闭
 	defer t.Close()
 
+	// 定时主动心跳检测
+	// 有时内网网络连接状态仍为可读，但实际上服务端已经断开，所以必须主动Write尝试
+	stopChan := make(chan int)
+	go func() {
+		defer log.Get().WithField("name", t.name).Info("heartbeat thread stopped")
+		log.Get().WithField("name", t.name).Info("heartbeat thread running")
+		for {
+			select {
+			case <-time.After(time.Second * 15):
+				if time.Since(t.heartbeatTime).Seconds() > 5 {
+					if _, _, err := t.writeData(newHeartbeatData(t.newConnID())); err != nil {
+						log.Get().WithError(err).Error("heartbeat failed, tunnel will close")
+						t.Close()
+						return
+					}
+				}
+			case <-stopChan:
+				return
+			}
+		}
+	}()
+
 	for {
 		var data Data
 		if err := t.readData(&data); err != nil {
 			log.Get().WithError(err).Error("read data failed")
 			break
 		}
+		// 收到对端的心跳包，视作一次心跳完成
+		t.lastHeartbeat = uint32(data.ConnID)
+		t.heartbeatTime = time.Now()
 
 		switch data.Cmd {
 		case cmdDialReq:
@@ -153,13 +182,7 @@ func (t *Tunnel) Serve() {
 		case cmdData:
 			t.transportData(&data)
 		case cmdHeartbeat:
-			go func() {
-				t.lastHeartbeat = uint32(data.ConnID)
-				t.heartbeatTime = time.Now()
-				// 收到心跳包请求，15秒后回应一个心跳包
-				<-time.After(time.Second * 15)
-				t.writeData(newHeartbeatData(data.ConnID + 1))
-			}()
+			// 收到专门的heartbeat包，说明一个心跳周期内没有其它数据包了
 		case cmdTextMessages:
 			go func() {
 				// 收到来自对端的信息
@@ -167,19 +190,20 @@ func (t *Tunnel) Serve() {
 			}()
 		}
 	}
-}
-
-// StartHeartbeat 开始心跳
-func (t *Tunnel) StartHeartbeat() {
-	t.writeData(newHeartbeatData(cid(0)))
+	stopChan <- 0
 }
 
 // writeData 网通道里面写入数据包，binary版本
 func (t *Tunnel) writeData(data Data) (total, writedBytes int, err error) {
 	t.writeLocker.Lock()
-	defer t.writeLocker.Unlock()
 	defer func() {
 		t.uploadSize += uint64(total)
+		if err != nil {
+			// 一次写数据成功也视作心跳成功
+			t.lastHeartbeat = uint32(data.ConnID)
+			t.heartbeatTime = time.Now()
+		}
+		t.writeLocker.Unlock()
 	}()
 
 	// cid(4) + cmd(1) + datalen(2:65535)

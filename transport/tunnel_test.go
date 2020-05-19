@@ -162,12 +162,12 @@ func TestTunnel_Serve(t *testing.T) {
 	clientName := "abcdefg"
 	secret := "1234"
 	randKey := []byte("1234567812345678")
-	agent, err := NewTunnel(agentConn, clientName, secret, randKey, true)
+	agent, err := NewTunnel(agentConn, clientName, secret, randKey, true, true)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	server, err := NewTunnel(serverConn, clientName, secret, randKey, false)
+	server, err := NewTunnel(serverConn, clientName, secret, randKey, true, false)
 	if err != nil {
 		t.Error(err)
 		return

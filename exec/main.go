@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"regexp"
 	"time"
@@ -85,9 +86,22 @@ func main() {
 			log.Get().WithField("channelName", cfg.ChannelName).Error("length of config.channelName must >= 6")
 			return
 		}
+		// 重试间隔
+		retryElapse := 12.0
 		for {
+			startTime := time.Now()
 			runAsAgent(&cfg)
-			<-time.After(time.Second * 12)
+			runSeconds := time.Since(startTime).Seconds()
+			if runSeconds < retryElapse {
+				log.Get().Info(fmt.Sprintf("agent restart after %v seconds", retryElapse-runSeconds))
+				<-time.After(time.Second * time.Duration(retryElapse-runSeconds))
+				retryElapse *= 1.2
+				if retryElapse > 60 {
+					retryElapse = 60
+				}
+			} else {
+				retryElapse = 12.0
+			}
 		}
 	case "server":
 		runAsServer(&cfg)
