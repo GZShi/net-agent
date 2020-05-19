@@ -83,7 +83,7 @@ func NewTunnel(conn net.Conn, name, secret string, randKey []byte, compress bool
 	decStream := cipher.NewCTR(blockCipher, iv[0:blockCipher.BlockSize()])
 
 	if compress {
-		conn = NewCompressConn(conn)
+		// conn = NewCompressConn(conn)
 	}
 
 	return &Tunnel{
