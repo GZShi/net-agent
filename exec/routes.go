@@ -54,7 +54,7 @@ func setTunnelRoute(app *iris.Application, tunnelCluster *transport.TunnelCluste
 		return
 	}
 
-	gss := app.Party("/gss")
+	gss := app.Party("/reworkapi")
 	{
 		gss.Get("/register-socks5", handleRegisterSocks5)
 		gss.Get("/register-portproxy", handleRegisterPortproxy)
@@ -65,8 +65,6 @@ func setTunnelRoute(app *iris.Application, tunnelCluster *transport.TunnelCluste
 		admin := gss.Party("/admin", handleCheckSSO)
 		{
 			admin.Get("/base-info", handleGetBaseInfo)
-			admin.Get("/active-conns", handleGetActiveConns)
-			admin.Get("/history-conns", handleGetHistoryConns)
 			admin.Post("/logout", handleLogout)
 		}
 	}
@@ -106,15 +104,14 @@ func handleCheckSSO(ctx iris.Context) {
 }
 
 func handleGetBaseInfo(ctx iris.Context) {
-	response(ctx, nil, cluster.GetStatus())
-}
-
-func handleGetActiveConns(ctx iris.Context) {
-	response(ctx, nil, cluster.GetActiveConns())
-}
-
-func handleGetHistoryConns(ctx iris.Context) {
-	response(ctx, nil, cluster.GetHistoryConns())
+	var payload struct {
+		Name string `json:"name"`
+	}
+	if err := ctx.ReadJSON(&payload); err != nil {
+		response(ctx, err, nil)
+		return
+	}
+	response(ctx, nil, cluster.GetStatus(payload.Name))
 }
 
 func handleRegisterPortproxy(ctx iris.Context) {
