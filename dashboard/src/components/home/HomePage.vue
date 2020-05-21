@@ -138,8 +138,16 @@
       </div>
     </div>
 
-    <div class="content use-step">
-      <div>第三步：访问者打开真正的远程控制工具</div>
+    <div class="content use-step" v-if="userType == 'windows'">
+      <div>第三步：访问者打开真正的远程控制工具（<span class="text-btn" @click="userType = 'mac'">我是Mac用户</span>）</div>
+      <div class="mstsc">
+        <img src="../../assets/mstsc.png" alt="">
+        <div class="address-cover">localhost:{{config.portproxy.port}}</div>
+      </div>
+    </div>
+
+    <div class="content use-step" v-else-if="userType == 'mac'">
+      <div>第三步：访问者打开真正的远程控制工具（<span class="text-btn" @click="userType = 'windows'">我是Windows用户</span>）</div>
       <div class="mstsc">
         <img src="../../assets/mstsc.png" alt="">
         <div class="address-cover">localhost:{{config.portproxy.port}}</div>
@@ -157,6 +165,7 @@ export default {
   data() {
     return {
       showBuildTips: false,
+      userType: 'windows',
       config: {
         serverHost: 'localhost',
         serverPort: '1080',
