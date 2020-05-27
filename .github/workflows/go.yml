@@ -31,7 +31,7 @@ jobs:
         fi
 
     - name: Build
-      run: go build -v ./exec
+      run: go build -v ./exec/main.go
 
     - name: Test
-      run: go test -v ./exec
+      run: go test -v ./transport/tunnel_test.go
