@@ -3,6 +3,10 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"sync"
+
+	log "github.com/GZShi/net-agent/logger"
+	"github.com/fsnotify/fsnotify"
 )
 
 type blockInfo struct {
@@ -11,10 +15,48 @@ type blockInfo struct {
 	Allow       []string `json:"allow"`
 }
 
+var blockUpdateLock sync.RWMutex
 var blockMaps = make(map[string]bool)
 var allowMaps = make(map[string]bool)
 var errTargetAddrBlocked = errors.New("Target address blocked")
 var errTargetAddrBlockedByDefault = errors.New("Target address blocked by default")
+
+func watchBlockList(path string) error {
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	err = w.Add(path)
+	if err != nil {
+		return err
+	}
+
+	log.Get().WithField("path", path).Info("watching file")
+	for {
+		select {
+		case event, ok := <-w.Events:
+			if !ok {
+				return nil
+			}
+			if event.Op&fsnotify.Write == fsnotify.Write {
+				log.Get().WithField("event.Name", event.Name).Debug("modified file")
+				err = initBlockList()
+				if err != nil {
+					log.Get().WithError(err).Error("update blocklist failed")
+				} else {
+					log.Get().Info("update blocklist success")
+				}
+			}
+		case err, ok := <-w.Errors:
+			if !ok {
+				return nil
+			}
+			log.Get().WithError(err).Error("watch file error")
+		}
+	}
+}
 
 func initBlockList() error {
 	data, err := readJSON("./blocklist.json")
@@ -26,6 +68,10 @@ func initBlockList() error {
 		return err
 	}
 
+	blockUpdateLock.Lock()
+	defer blockUpdateLock.Unlock()
+	blockMaps = make(map[string]bool)
+	allowMaps = make(map[string]bool)
 	for _, info := range blockInfos {
 		channelName := info.ChannelName
 		for _, item := range info.Block {
@@ -40,6 +86,8 @@ func initBlockList() error {
 }
 
 func checkBlockList(network, targetAddr, channelName string) error {
+	blockUpdateLock.RLock()
+	defer blockUpdateLock.RUnlock()
 	key := targetAddr + "@" + channelName
 	if _, blocked := blockMaps[key]; blocked {
 		return errTargetAddrBlocked

@@ -14,6 +14,7 @@ import (
 )
 
 func runAsServer(cfg *config) {
+	go watchBlockList("./blocklist.json")
 	if err := initBlockList(); err != nil {
 		log.Get().WithError(err).Error("初始化blocklist.json失败")
 	}
