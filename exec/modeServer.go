@@ -14,6 +14,9 @@ import (
 )
 
 func runAsServer(cfg *config) {
+	if err := initBlockList(); err != nil {
+		log.Get().WithError(err).Error("初始化blocklist.json失败")
+	}
 	httpServer := iris.New()
 	tunnelCluster := transport.NewTunnelCluster(cfg.Secret)
 	onSocks5Conn := func(sourceAddr, network, targetAddr, clientName string) (net.Conn, error) {
@@ -29,6 +32,10 @@ func runAsServer(cfg *config) {
 		if channelName == "direct" {
 			return net.Dial(network, targetAddr)
 		}
+		// 黑白名单访问限制
+		if err := checkBlockList(network, targetAddr, channelName); err != nil {
+			return nil, err
+		}
 		return tunnelCluster.Dial(sourceAddr, network, targetAddr, channelName, userName)
 	}
 	socks5Server := socks5.NewSocks5Server(cfg.Secret, onSocks5Conn)
@@ -37,7 +44,7 @@ func runAsServer(cfg *config) {
 	// startPortproxyServer(tunnelCluster, cfg.PortProxy)
 	setTunnelRoute(httpServer, tunnelCluster)
 
-	// listen
+	// listen for http/socks5/tunnel
 	listener, err := protocol.NewListener("tcp", cfg.Addr)
 	if err != nil {
 		log.Get().WithField("addr", cfg.Addr).WithError(err).Error("listen on port failed")
