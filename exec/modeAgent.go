@@ -8,6 +8,7 @@ import (
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/socks5"
 	"github.com/GZShi/net-agent/transport"
+	"github.com/GZShi/net-agent/ws"
 	"github.com/sirupsen/logrus"
 )
 
@@ -20,8 +21,13 @@ func runAsAgent(cfg *config) {
 	}()
 
 	log.Get().WithField("addr", cfg.Addr).Info("try to connect server")
-
-	client, err := net.Dial("tcp", cfg.Addr)
+	var client net.Conn
+	var err error
+	if cfg.Mode == "ws-agent" {
+		client, err = ws.Dial(cfg.Addr)
+	} else {
+		client, err = net.Dial("tcp", cfg.Addr)
+	}
 	if err != nil {
 		log.Get().WithError(err).WithField("addr", cfg.Addr).Error("dial failed")
 		return

@@ -41,29 +41,31 @@ func runAsServer(cfg *config) {
 	}
 	socks5Server := socks5.NewSocks5Server(cfg.Secret, onSocks5Conn)
 
-	initTotp(cfg.TotpList)
-	// startPortproxyServer(tunnelCluster, cfg.PortProxy)
-	setTunnelRoute(httpServer, tunnelCluster)
-
 	// listen for http/socks5/tunnel
 	listener, err := protocol.NewListener("tcp", cfg.Addr)
 	if err != nil {
 		log.Get().WithField("addr", cfg.Addr).WithError(err).Error("listen on port failed")
 		return
 	}
+
+	initTotp(cfg.TotpList)
+	// startPortproxyServer(tunnelCluster, cfg.PortProxy)
+	setTunnelRoute(httpServer, tunnelCluster, listener)
+
 	var wg sync.WaitGroup
 	wg.Add(3)
 	go func() {
 		defer wg.Done()
-		tunnelCluster.Run(listener.GetAgentListener())
+		tunnelCluster.Run(listener.GetListener(protocol.ProtoAgentClient))
 	}()
 	go func() {
 		defer wg.Done()
-		socks5Server.Run(listener.GetSocks5Listener())
+		socks5Server.Run(listener.GetListener(protocol.ProtoSocks5))
 	}()
 	go func() {
 		defer wg.Done()
-		httpServer.Run(iris.Listener(listener.GetHTTPListener()))
+		httpServer.Run(iris.Listener(listener.GetListener(protocol.ProtoHTTP)))
 	}()
+
 	wg.Wait()
 }

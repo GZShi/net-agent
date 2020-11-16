@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	protoUnknown = iota
-	protoHTTP
-	protoSocks5
-	protoAgentClient
-	protoShadowsocks
+	ProtoUnknown = iota
+	ProtoHTTP
+	ProtoSocks5
+	ProtoAgentClient
+	ProtoShadowsocks
 )
 
 // Conn 支持协议侦测的连接
@@ -34,16 +34,16 @@ func NewConn(raw net.Conn) *Conn {
 
 	// b, err := conn.Reader.ReadByte()
 	// if err != nil {
-	// 	conn.protocol = protoUnknown
+	// 	conn.protocol = ProtoUnknown
 	// 	return conn
 	// }
 	// err = conn.Reader.UnreadByte()
 	// if err != nil {
-	// 	conn.protocol = protoUnknown
+	// 	conn.protocol = ProtoUnknown
 	// }
-	headBytes, err := conn.Reader.Peek(3)
+	headBytes, err := conn.Reader.Peek(11)
 	if err != nil && err != bufio.ErrBufferFull {
-		conn.protocol = protoUnknown
+		conn.protocol = ProtoUnknown
 		return conn
 	}
 
@@ -51,39 +51,19 @@ func NewConn(raw net.Conn) *Conn {
 
 	switch b {
 	case 0x05:
-		conn.protocol = protoSocks5
+		conn.protocol = ProtoSocks5
 	case 0x01, 0x03, 0x04:
-		conn.protocol = protoShadowsocks
+		conn.protocol = ProtoShadowsocks
 	default:
 		if b >= 'a' && b <= 'z' {
-			conn.protocol = protoAgentClient
+			conn.protocol = ProtoAgentClient
 		} else if b >= 'A' && b <= 'Z' {
-			conn.protocol = protoHTTP
+			conn.protocol = ProtoHTTP
 		} else {
-			conn.protocol = protoUnknown
+			conn.protocol = ProtoUnknown
 		}
 	}
 	return conn
-}
-
-// IsHTTP 是不是http协议
-func (p *Conn) IsHTTP() bool {
-	return p.protocol == protoHTTP
-}
-
-// IsSocks5 是不是socks5协议
-func (p *Conn) IsSocks5() bool {
-	return p.protocol == protoSocks5
-}
-
-// IsAgent 是不是agent协议
-func (p *Conn) IsAgent() bool {
-	return p.protocol == protoAgentClient
-}
-
-// IsSS 是不是Shadowsocks协议
-func (p *Conn) IsSS() bool {
-	return p.protocol == protoShadowsocks
 }
 
 func (p *Conn) Read(b []byte) (int, error) {

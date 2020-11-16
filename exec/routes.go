@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/GZShi/net-agent/protocol"
 	"github.com/GZShi/net-agent/totp"
 
 	log "github.com/GZShi/net-agent/logger"
@@ -47,11 +48,18 @@ func response(ctx iris.Context, err error, data interface{}) {
 	}
 }
 
-func setTunnelRoute(app *iris.Application, tunnelCluster *transport.TunnelCluster) {
+func setTunnelRoute(app *iris.Application,
+	tunnelCluster *transport.TunnelCluster,
+	manager *protocol.ProtoManager) {
 
 	cluster = tunnelCluster
 	if cluster == nil {
 		return
+	}
+
+	ws := app.Party("/ws")
+	{
+		ws.Get("/agent", MakeAgentUpgrader(manager))
 	}
 
 	gss := app.Party("/reworkapi")

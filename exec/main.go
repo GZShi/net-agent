@@ -77,7 +77,7 @@ func main() {
 	log.Get().WithField("mode", cfg.Mode).Info("will run as config.mode")
 
 	switch cfg.Mode {
-	case "agent":
+	case "agent", "ws-agent":
 		if len(cfg.ClientName) < 3 {
 			log.Get().WithField("clientName", cfg.ClientName).Error("length of config.clientName must >= 3")
 			return

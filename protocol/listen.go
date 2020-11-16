@@ -31,10 +31,16 @@ func (p *ProtoListener) Addr() net.Addr {
 	return p.manager.raw.Addr()
 }
 
+// DispatchConn 与manager的同名功能一致
+func (p *ProtoListener) DispatchConn(c net.Conn) {
+	p.manager.DispatchConn(c)
+}
+
 // ProtoManager 混合协议监听器
 type ProtoManager struct {
-	raw    net.Listener
-	initWg sync.WaitGroup
+	raw      net.Listener
+	initWg   sync.WaitGroup
+	rAddrMap *sync.Map
 
 	httpConns   chan *Conn
 	socks5Conns chan *Conn
@@ -49,6 +55,7 @@ func NewListener(network, addr string) (*ProtoManager, error) {
 	}
 	p := &ProtoManager{
 		raw:         raw,
+		rAddrMap:    &sync.Map{},
 		httpConns:   make(chan *Conn, 256),
 		socks5Conns: make(chan *Conn, 256),
 		agentConns:  make(chan *Conn, 256),
@@ -56,7 +63,6 @@ func NewListener(network, addr string) (*ProtoManager, error) {
 	p.initWg.Add(1)
 
 	go func() {
-		rAddrMap := sync.Map{}
 		log.Get().WithField("addr", addr).Info("server is running")
 		p.initWg.Done()
 		for {
@@ -64,38 +70,7 @@ func NewListener(network, addr string) (*ProtoManager, error) {
 			if err != nil {
 				break
 			}
-			go func(c net.Conn) {
-				remoteAddr := c.RemoteAddr().String()
-				ip := remoteAddr
-				if strings.HasPrefix(remoteAddr, "[") {
-					// ipv6
-					ip = strings.Split(remoteAddr[1:], "]:")[0]
-				} else if len(remoteAddr) > 0 {
-					// ipv4
-					ip = strings.Split(remoteAddr, ":")[0]
-				}
-				_, isLoad := rAddrMap.LoadOrStore(ip, 1)
-				if !isLoad {
-					log.Get().WithField("raddr", remoteAddr).Info("new remote addr")
-				}
-
-				protoConn := NewConn(c)
-				switch {
-				case protoConn.IsHTTP():
-					p.httpConns <- protoConn
-				case protoConn.IsSocks5():
-					p.socks5Conns <- protoConn
-				case protoConn.IsAgent():
-					p.agentConns <- protoConn
-				default:
-					lineData, _, err := protoConn.Reader.ReadLine()
-					log.Get().WithError(err).WithFields(logrus.Fields{
-						"data":  lineData,
-						"raddr": remoteAddr,
-					}).Warn("bad protocol")
-					protoConn.Close()
-				}
-			}(conn)
+			go p.DispatchConn(conn)
 		}
 		close(p.httpConns)
 		close(p.socks5Conns)
@@ -106,41 +81,57 @@ func NewListener(network, addr string) (*ProtoManager, error) {
 	return p, nil
 }
 
-// GetHTTPListener 获取http协议监听器
-func (p *ProtoManager) GetHTTPListener() *ProtoListener {
+// GetListener 获取http协议监听器
+func (p *ProtoManager) GetListener(listenerType int) *ProtoListener {
 	p.initWg.Wait()
 	return &ProtoListener{
 		manager: p,
-		proto:   protoHTTP,
+		proto:   listenerType,
 	}
 }
 
-// GetSocks5Listener 获取socks5协议监听器
-func (p *ProtoManager) GetSocks5Listener() *ProtoListener {
-	p.initWg.Wait()
-	return &ProtoListener{
-		manager: p,
-		proto:   protoSocks5,
+// DispatchConn 分发已经存在的Conn
+func (p *ProtoManager) DispatchConn(c net.Conn) {
+	remoteAddr := c.RemoteAddr().String()
+	ip := remoteAddr
+	if strings.HasPrefix(remoteAddr, "[") {
+		// ipv6
+		ip = strings.Split(remoteAddr[1:], "]:")[0]
+	} else if len(remoteAddr) > 0 {
+		// ipv4
+		ip = strings.Split(remoteAddr, ":")[0]
 	}
-}
+	_, isLoad := p.rAddrMap.LoadOrStore(ip, 1)
+	if !isLoad {
+		log.Get().WithField("raddr", remoteAddr).Info("new remote addr")
+	}
 
-// GetAgentListener 获取agent协议监听器
-func (p *ProtoManager) GetAgentListener() *ProtoListener {
-	p.initWg.Wait()
-	return &ProtoListener{
-		manager: p,
-		proto:   protoAgentClient,
+	protoConn := NewConn(c)
+	switch protoConn.protocol {
+	case ProtoHTTP:
+		p.httpConns <- protoConn
+	case ProtoSocks5:
+		p.socks5Conns <- protoConn
+	case ProtoAgentClient:
+		p.agentConns <- protoConn
+	default:
+		lineData, _, err := protoConn.Reader.ReadLine()
+		log.Get().WithError(err).WithFields(logrus.Fields{
+			"data":  lineData,
+			"raddr": remoteAddr,
+		}).Warn("bad protocol")
+		protoConn.Close()
 	}
 }
 
 func (p *ProtoManager) accept(proto int) (net.Conn, error) {
 	var conn net.Conn
 	switch proto {
-	case protoHTTP:
+	case ProtoHTTP:
 		conn = <-p.httpConns
-	case protoSocks5:
+	case ProtoSocks5:
 		conn = <-p.socks5Conns
-	case protoAgentClient:
+	case ProtoAgentClient:
 		conn = <-p.agentConns
 	default:
 		conn = nil
@@ -155,11 +146,11 @@ func (p *ProtoManager) accept(proto int) (net.Conn, error) {
 func (p *ProtoManager) close(proto int) error {
 	var ch chan *Conn
 	switch proto {
-	case protoHTTP:
+	case ProtoHTTP:
 		ch = p.httpConns
-	case protoSocks5:
+	case ProtoSocks5:
 		ch = p.socks5Conns
-	case protoAgentClient:
+	case ProtoAgentClient:
 		ch = p.agentConns
 	default:
 		ch = nil
