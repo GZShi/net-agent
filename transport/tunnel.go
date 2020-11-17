@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -29,6 +30,7 @@ func makeConnIDGenerator() func() cid {
 
 // Tunnel 用于传递数据的隧道
 type Tunnel struct {
+	clusterRef  *TunnelCluster
 	id          uint32
 	logDetail   bool
 	conn        net.Conn
@@ -87,6 +89,7 @@ func NewTunnel(conn net.Conn, name, secret string, randKey []byte, compress bool
 	}
 
 	return &Tunnel{
+		clusterRef:        nil,
 		id:                atomic.AddUint32(&tunnelIDSequence, 1),
 		logDetail:         logDetail,
 		conn:              conn,
@@ -108,6 +111,11 @@ func NewTunnel(conn net.Conn, name, secret string, randKey []byte, compress bool
 		uploadPack:    0,
 		downloadPack:  0,
 	}, nil
+}
+
+// SetClusterRef 绑定集群信息
+func (t *Tunnel) SetClusterRef(ref *TunnelCluster) {
+	t.clusterRef = ref
 }
 
 // GetName 获取通道名字
@@ -173,7 +181,7 @@ func (t *Tunnel) Serve() {
 		t.heartbeatTime = time.Now()
 
 		switch data.Cmd {
-		case cmdDialReq:
+		case cmdChannelDialReq, cmdDialReq:
 			go t.dialByData(&data)
 		case cmdDialSuccess, cmdDialFailed:
 			go t.dialCallbackWithData(&data)
@@ -278,25 +286,42 @@ func (t *Tunnel) readData(data *Data) error {
 
 // dialByData 根据读取到的dial数据包发起请求
 func (t *Tunnel) dialByData(data *Data) {
-	addr := string(data.Bytes)
-	port := newDataPort(data.ConnID, "", addr, "")
+	var err error
+	var port *dataPort
+	var addr string
+	if data.Cmd == cmdChannelDialReq {
+		var d channelDialData
+		if err = json.Unmarshal(data.Bytes, &d); err != nil {
+			t.writeData(newDialAns(data.ConnID, err))
+			return
+		}
+		addr = d.TargetAddr
+		port = newDataPort(data.ConnID, d.SourceAddr, d.TargetAddr, d.ChannelName, d.UserName)
+	} else {
+		addr = string(data.Bytes)
+		port = newDataPort(data.ConnID, "", addr, "", "")
+	}
+
 	defer port.close()
 
-	if err := port.dialToNet(t); err != nil {
-		if t.logDetail {
-			log.Get().WithFields(logrus.Fields{
-				"to":   addr,
-				"from": "",
-			}).WithError(err).Error("dial to net failed")
+	if data.Cmd == cmdChannelDialReq {
+		err = port.dialToCluster(t.clusterRef, t)
+	} else {
+		err = port.dialToNet(t)
+	}
+
+	if t.logDetail {
+		f := logrus.Fields{"to": addr, "from": ""}
+		if err != nil {
+			log.Get().WithFields(f).WithError(err).Error("dial to net failed")
+		} else {
+			log.Get().WithFields(f).Info("dial to net success")
 		}
+	}
+
+	if err != nil {
 		t.writeData(newDialAns(data.ConnID, err))
 		return
-	}
-	if t.logDetail {
-		log.Get().WithFields(logrus.Fields{
-			"to":   addr,
-			"from": "",
-		}).Info("dial to net success")
 	}
 
 	atomic.AddInt32(&t.activePortCount, 1)
@@ -364,14 +389,17 @@ func (t *Tunnel) dialCallbackWithData(data *Data) {
 }
 
 // Dial 与net.Dial一致的创建连接方式
-func (t *Tunnel) Dial(sourceAddr, network, addr, userName string) (target net.Conn, err error) {
+// 让对端进行拨号
+// 如果channelName为空，则直接在对端进行拨号
+// 如果channelName不为空，则要求对端查找对应的tunnel进行拨号
+func (t *Tunnel) Dial(sourceAddr, network, addr, channelName, userName string) (target net.Conn, err error) {
 	// wait dial result
 	var wg sync.WaitGroup
 	wg.Add(1)
 
 	go func() {
 		id := t.newConnID()
-		port := newDataPort(id, sourceAddr, addr, userName)
+		port := newDataPort(id, sourceAddr, addr, channelName, userName)
 		defer port.close()
 
 		t.ports.Store(id, port)

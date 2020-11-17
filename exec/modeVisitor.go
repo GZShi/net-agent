@@ -12,7 +12,37 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// runSocks5Server
+// 与远端服务器创建tunnel，然后监听本地端口创建socks5服务
+// 通过tunnel执行dial操作
+func runSocks5Server(info *portProxyInfo, cfg *config) {
+	// create tunnel
+	t, err := createTunnel(cfg, true)
+	if err != nil {
+		return
+	}
+	go t.Serve()
+
+	socks5Server := socks5.NewSocks5Server(cfg.Secret, socks5.NewTunnelDialer(t, cfg.ChannelName, cfg.ClientName))
+	log.Get().WithFields(logrus.Fields{
+		"listen": info.Listen,
+		"target": info.TargetAddr,
+	}).Info("socks5 server is working")
+	err = socks5Server.ListenAndRun(info.Listen)
+	if err != nil {
+		log.Get().WithError(err).Error("socks5 server error")
+		return
+	}
+}
+
+// runPortServer
+// 创建端口转发程序
+// 注意：当目标地址端口字段为“*”时，将启动socks5程序
 func runPortServer(info *portProxyInfo, cfg *config) {
+	if info.TargetAddr == "*" {
+		runSocks5Server(info, cfg)
+		return
+	}
 	targetHost, targetPortStr, err := net.SplitHostPort(info.TargetAddr)
 	if err != nil {
 		log.Get().WithField("targetAddr", info.TargetAddr).WithError(err).Error("bad target address")

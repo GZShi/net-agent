@@ -1,10 +1,7 @@
 package main
 
 import (
-	"errors"
-	"net"
 	"path"
-	"strings"
 	"sync"
 
 	log "github.com/GZShi/net-agent/logger"
@@ -20,28 +17,9 @@ func runAsServer(cfg *config, configDir string) {
 	if err := initBlockList(blockListPath); err != nil {
 		log.Get().WithField("path", blockListPath).WithError(err).Error("初始化blocklist.json失败")
 	}
-	httpServer := iris.New()
 	tunnelCluster := transport.NewTunnelCluster(cfg.Secret)
-	onSocks5Conn := func(sourceAddr, network, targetAddr, clientName string) (net.Conn, error) {
-		authInfos := strings.Split(clientName, "@")
-		if len(authInfos) != 2 {
-			return nil, errors.New("bad client name")
-		}
-		userName := authInfos[0]
-		channelName := authInfos[1]
-		if len(channelName) < 3 {
-			return nil, errors.New("channel name is too short")
-		}
-		if channelName == "direct" {
-			return net.Dial(network, targetAddr)
-		}
-		// 黑白名单访问限制
-		if err := checkBlockList(network, targetAddr, channelName); err != nil {
-			return nil, err
-		}
-		return tunnelCluster.Dial(sourceAddr, network, targetAddr, channelName, userName)
-	}
-	socks5Server := socks5.NewSocks5Server(cfg.Secret, onSocks5Conn)
+	socks5Server := socks5.NewSocks5Server(cfg.Secret,
+		socks5.NewTunnelClusterDialer(tunnelCluster, checkBlockList))
 
 	// listen for http/socks5/tunnel
 	listener, err := protocol.NewListener("tcp", cfg.Addr)
@@ -50,8 +28,9 @@ func runAsServer(cfg *config, configDir string) {
 		return
 	}
 
-	initTotp(cfg.TotpList)
 	// startPortproxyServer(tunnelCluster, cfg.PortProxy)
+	httpServer := iris.New()
+	initTotp(cfg.TotpList)
 	setTunnelRoute(httpServer, tunnelCluster, listener)
 
 	var wg sync.WaitGroup

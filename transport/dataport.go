@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"io"
 	"net"
 	"sync"
@@ -16,13 +17,14 @@ const (
 )
 
 type dataPort struct {
-	userName   string
-	connID     cid
-	addr       string
-	sourceAddr string
-	dialer     net.Conn
-	porter     net.Conn
-	t          *Tunnel
+	userName    string
+	connID      cid
+	addr        string
+	sourceAddr  string
+	channelName string
+	dialer      net.Conn
+	porter      net.Conn
+	t           *Tunnel
 
 	dialErr error
 	dialWg  sync.WaitGroup
@@ -36,12 +38,13 @@ type dataPort struct {
 	downToClient uint64
 }
 
-func newDataPort(id cid, sourceAddr, addr, userName string) *dataPort {
+func newDataPort(id cid, sourceAddr, addr, channelName, userName string) *dataPort {
 	return &dataPort{
-		userName:   userName,
-		connID:     id,
-		addr:       addr,
-		sourceAddr: sourceAddr,
+		userName:    userName,
+		connID:      id,
+		addr:        addr,
+		sourceAddr:  sourceAddr,
+		channelName: channelName,
 
 		state:        portstInited,
 		created:      time.Now(),
@@ -66,7 +69,12 @@ func (p *dataPort) dialWithTunnel(t *Tunnel) (dialer net.Conn, err error) {
 	p.porter = porter
 
 	p.dialWg.Add(1)
-	if _, _, err = t.writeData(newDialReq(p.connID, p.addr)); err != nil {
+	if p.channelName == "" {
+		_, _, err = t.writeData(newDialReq(p.connID, p.addr))
+	} else {
+		_, _, err = t.writeData(newClusterDialReq(p.connID, "", p.addr, p.channelName, p.userName))
+	}
+	if err != nil {
 		p.dialWg.Done()
 		return nil, err
 	}
@@ -96,6 +104,28 @@ func (p *dataPort) dialToNet(t *Tunnel) (err error) {
 
 	p.t = t
 	target, err := net.Dial("tcp", p.addr)
+	if err != nil {
+		return err
+	}
+
+	p.porter = target
+	return nil
+}
+
+// dialToCluster
+func (p *dataPort) dialToCluster(cluster *TunnelCluster, t *Tunnel) (err error) {
+	if cluster == nil {
+		return errors.New("cluster is nil")
+	}
+	p.state = portstConnecting
+	defer func() {
+		if err == nil {
+			p.state = portstWorking
+		}
+	}()
+
+	p.t = t
+	target, err := cluster.Dial(p.sourceAddr, "tcp4", p.addr, p.channelName, p.userName)
 	if err != nil {
 		return err
 	}

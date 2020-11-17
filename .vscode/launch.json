@@ -11,7 +11,7 @@
       "mode": "auto",
       "program": "${workspaceFolder}/exec",
       "env": {},
-      "args": ["-config", "E:/remotework/config.server.json"]
+      "args": ["-config", "E:/remotework/local.server.json"]
     },
     {
       "name": "Agent",
@@ -27,9 +27,9 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/exec/main.go",
+      "program": "${workspaceFolder}/exec",
       "env": {},
-      "args": ["-config", "../dist/config.visitor.json"]
+      "args": ["-config", "E:/remotework/local.visitor.json"]
     }
   ]
 }

@@ -43,6 +43,7 @@ func (p *TunnelCluster) doConnWork(client net.Conn) {
 		log.Get().WithError(err).Error("create tunnel failed")
 		return
 	}
+	tunnel.SetClusterRef(p)
 	tunnel.conn.Write([]byte{0x00})
 	atomic.AddInt32(&p.activeCount, 1)
 
@@ -52,7 +53,6 @@ func (p *TunnelCluster) doConnWork(client net.Conn) {
 	tList.Add(tunnel)
 
 	log.Get().WithField("name", name).WithField("addr", client.RemoteAddr()).Info("new tunnel created")
-
 	// 当tunnel还在工作的时候，会一直在这里block
 	tunnel.Serve()
 
@@ -76,6 +76,9 @@ func (p *TunnelCluster) Run(listener net.Listener) {
 
 // Dial 通过channelName拨号
 func (p *TunnelCluster) Dial(sourceAddr, network, addr, channelName, userName string) (net.Conn, error) {
+	if channelName == AnonymName {
+		return nil, fmt.Errorf("channel(%v) can't access", channelName)
+	}
 	group, ok := p.groups.Load(channelName)
 
 	if !ok {
@@ -88,5 +91,6 @@ func (p *TunnelCluster) Dial(sourceAddr, network, addr, channelName, userName st
 		return nil, fmt.Errorf("channel(%v) is empty", channelName)
 	}
 
-	return t.Dial(sourceAddr, network, addr, userName)
+	// 已经选定了tunnel，所以不再传递channelName，否则将会一直循环下去
+	return t.Dial(sourceAddr, network, addr, "", userName)
 }
