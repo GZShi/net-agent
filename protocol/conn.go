@@ -41,7 +41,7 @@ func NewConn(raw net.Conn) *Conn {
 	// if err != nil {
 	// 	conn.protocol = ProtoUnknown
 	// }
-	headBytes, err := conn.Reader.Peek(11)
+	headBytes, err := conn.Reader.Peek(3)
 	if err != nil && err != bufio.ErrBufferFull {
 		conn.protocol = ProtoUnknown
 		return conn

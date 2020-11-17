@@ -42,7 +42,7 @@ func watchBlockList(path string) error {
 			}
 			if event.Op&fsnotify.Write == fsnotify.Write {
 				log.Get().WithField("event.Name", event.Name).Debug("modified file")
-				err = initBlockList()
+				err = initBlockList(path)
 				if err != nil {
 					log.Get().WithError(err).Error("update blocklist failed")
 				} else {
@@ -58,8 +58,8 @@ func watchBlockList(path string) error {
 	}
 }
 
-func initBlockList() error {
-	data, err := readJSON("./blocklist.json")
+func initBlockList(path string) error {
+	data, err := readJSON(path)
 	if err != nil {
 		return err
 	}

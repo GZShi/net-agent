@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"net"
+	"path"
 	"strings"
 	"sync"
 
@@ -13,10 +14,11 @@ import (
 	"github.com/kataras/iris"
 )
 
-func runAsServer(cfg *config) {
-	go watchBlockList("./blocklist.json")
-	if err := initBlockList(); err != nil {
-		log.Get().WithError(err).Error("初始化blocklist.json失败")
+func runAsServer(cfg *config, configDir string) {
+	blockListPath := path.Join(configDir, "blocklist.json")
+	go watchBlockList(blockListPath)
+	if err := initBlockList(blockListPath); err != nil {
+		log.Get().WithField("path", blockListPath).WithError(err).Error("初始化blocklist.json失败")
 	}
 	httpServer := iris.New()
 	tunnelCluster := transport.NewTunnelCluster(cfg.Secret)

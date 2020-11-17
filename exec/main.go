@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"path"
 	"regexp"
 	"time"
 
@@ -27,7 +28,6 @@ type config struct {
 	Mode      string          `json:"mode"` // server/agent/visitor
 	Addr      string          `json:"addr"` // ip:port
 	Secret    string          `json:"secret"`
-	WhiteList string          `json:"whiteList"` // TODO:可访问白名单
 	PortProxy []portProxyInfo `json:"portProxy"`
 
 	// client only
@@ -76,6 +76,7 @@ func main() {
 
 	log.Get().WithField("mode", cfg.Mode).Info("will run as config.mode")
 
+	configDir := path.Dir(configPath)
 	switch cfg.Mode {
 	case "agent", "ws-agent":
 		if len(cfg.ClientName) < 3 {
@@ -104,7 +105,7 @@ func main() {
 			}
 		}
 	case "server":
-		runAsServer(&cfg)
+		runAsServer(&cfg, configDir)
 	case "visitor":
 		runAsVisitor(&cfg)
 	default:
