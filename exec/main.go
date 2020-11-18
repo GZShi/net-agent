@@ -12,12 +12,6 @@ import (
 	log "github.com/GZShi/net-agent/logger"
 )
 
-type totpInfo struct {
-	Account string `json:"account"`
-	Secret  string `json:"secret"`
-	URL     string `json:"url"`
-}
-
 type portProxyInfo struct {
 	Listen      string `json:"listen"`
 	TargetAddr  string `json:"targetAddr"`
@@ -33,9 +27,6 @@ type config struct {
 	// client only
 	ClientName  string `json:"clientName"`
 	ChannelName string `json:"channelName"`
-
-	// server only
-	TotpList []totpInfo `json:"totpList"`
 }
 
 func readJSON(path string) ([]byte, error) {
