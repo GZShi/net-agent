@@ -3,6 +3,7 @@ package tunnel
 import (
 	"net"
 	"sync"
+	"sync/atomic"
 
 	log "github.com/GZShi/net-agent/logger"
 )
@@ -17,6 +18,7 @@ type streamGuard struct {
 }
 
 type Server struct {
+	idSequece    uint32
 	conn         net.Conn
 	respGuards   sync.Map
 	streamGuards sync.Map
@@ -24,8 +26,13 @@ type Server struct {
 
 func NewServer(conn net.Conn) *Server {
 	return &Server{
-		conn: conn,
+		idSequece: 0,
+		conn:      conn,
 	}
+}
+
+func (s *Server) NewID() uint32 {
+	return atomic.AddUint32(&s.idSequece, 1)
 }
 
 func (s *Server) Run() error {
@@ -88,6 +95,7 @@ func (s *Server) onResponse(f *Frame) {
 	val, has := s.respGuards.Load(f.SessionID)
 	if !has {
 		// 丢弃不用
+		log.Get().WithField("sessionID", f.SessionID).Error("can't find responseGuard")
 		return
 	}
 	// Todo: go1.15中提供了LoadAndDelete方法
@@ -100,11 +108,13 @@ func (s *Server) onResponse(f *Frame) {
 
 // onSteramData 接收到对端的一个数据传输包
 func (s *Server) onStreamData(f *Frame) {
-	val, has := s.streamGuards.Load(f.SessionID)
-	if !has {
-		return
+	guard := &streamGuard{
+		ch: make(chan *Frame, 256),
+	}
+	val, loaded := s.streamGuards.LoadOrStore(f.SessionID, guard)
+	if loaded {
+		guard = val.(*streamGuard)
 	}
 
-	guard := val.(*streamGuard)
 	guard.ch <- f
 }
