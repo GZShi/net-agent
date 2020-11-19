@@ -3,8 +3,6 @@ package tunnel
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	"strings"
 	"sync"
 
 	log "github.com/GZShi/net-agent/logger"
@@ -21,7 +19,7 @@ type Context interface {
 	// for response
 	JSON(v interface{})
 	Text(string)
-	Binary([]byte)
+	Data([]byte)
 	Error(error)
 	Flush()
 }
@@ -29,16 +27,9 @@ type Context interface {
 // OnRequestFunc 处理请求的回调函数
 type OnRequestFunc func(Context)
 
-// On 注册cmd监听回调
-func (s *Server) On(cmd string, fn OnRequestFunc) {
-	cmd = strings.Trim(cmd, " ")
-	if fn != nil && cmd != "" {
-		if s.cmdFuncMap == nil {
-			s.cmdFuncMap = make(map[string]OnRequestFunc)
-		}
-		s.cmdFuncMap[cmd] = fn
-	}
-}
+//
+// context implement
+//
 
 type context struct {
 	server    *Server
@@ -116,18 +107,6 @@ func (ctx *context) GetText() (string, error) {
 	return string(ctx.req.Data), nil
 }
 
-func (ctx *context) Flush() {
-	f := <-ctx.respChan
-	if f != nil {
-		wc := ctx.server.NewWriteCloser()
-		_, err := f.WriteTo(wc)
-		wc.Close()
-		if err != nil {
-			log.Get().WithError(err).Error("write response failed")
-		}
-	}
-}
-
 func (ctx *context) JSON(v interface{}) {
 	data, err := json.Marshal(v)
 	ctx.response(JSONData, data, err)
@@ -137,7 +116,7 @@ func (ctx *context) Text(text string) {
 	ctx.response(TextData, []byte(text), nil)
 }
 
-func (ctx *context) Binary(buf []byte) {
+func (ctx *context) Data(buf []byte) {
 	ctx.response(BinaryData, buf, nil)
 }
 
@@ -160,19 +139,14 @@ func (ctx *context) response(dataType uint8, data []byte, err error) {
 	ctx.Flush()
 }
 
-// onRequest 接收到对端的一个RequestFrame
-func (s *Server) onRequest(req *Frame) {
-	// process frame
-	ctx := s.newContext(req)
-	defer ctx.Flush()
-
-	cmd := ctx.GetCmd()
-
-	fn, found := s.cmdFuncMap[cmd]
-	if !found {
-		ctx.Error(fmt.Errorf("cmd(%v) not found", cmd))
-		return
+func (ctx *context) Flush() {
+	f := <-ctx.respChan
+	if f != nil {
+		wc := ctx.server.NewWriteCloser()
+		_, err := f.WriteTo(wc)
+		wc.Close()
+		if err != nil {
+			log.Get().WithError(err).Error("write response failed")
+		}
 	}
-
-	fn(ctx)
 }

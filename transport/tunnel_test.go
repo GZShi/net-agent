@@ -176,7 +176,7 @@ func TestTunnel_Serve(t *testing.T) {
 	go agent.Serve()
 	go server.Serve()
 
-	client, err := server.Dial("", "tcp", addr, "")
+	client, err := server.Dial("", "tcp", addr, "", "")
 	if err != nil {
 		t.Error(err)
 		return

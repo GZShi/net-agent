@@ -11,19 +11,19 @@ type streamRW struct {
 	writeSessionID uint32
 	readSessionID  uint32
 	server         *Server
-	guard          *streamGuard
+	guard          *frameGuard
 	readingFrame   *Frame
 	readingPos     int
 }
 
 // NewStreamRW 根据指定Session创建流式数据通道
 func (s *Server) NewStreamRW(readSessionID, writeSessionID uint32) io.ReadWriter {
-	guard := &streamGuard{
+	guard := &frameGuard{
 		ch: make(chan *Frame, 256),
 	}
 	val, loaded := s.streamGuards.LoadOrStore(readSessionID, guard)
 	if loaded {
-		guard = val.(*streamGuard)
+		guard = val.(*frameGuard)
 	}
 	stream := &streamRW{
 		readSessionID:  readSessionID,

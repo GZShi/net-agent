@@ -16,6 +16,9 @@ type Frame struct {
 	Data      []byte
 }
 
+// Headers 头部信息
+type Headers map[string]string
+
 // ID | Type | SessionID | DataType | len(Header) | len(Data) | Header | Data
 const frameStableBufSize = 4 + 1 + 4 + 1 + 4 + 4
 
