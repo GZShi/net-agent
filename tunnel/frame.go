@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"io"
 )
 
@@ -25,7 +26,8 @@ const (
 	// FrameRequest 请求帧
 	FrameRequest
 	// FrameResponse 应答帧
-	FrameResponse
+	FrameResponseOK
+	FrameResponseErr
 )
 
 // Frame.DataType 字典
@@ -118,4 +120,27 @@ func (f *Frame) ReadFrom(r io.Reader) (int64, error) {
 	}
 
 	return readed, nil
+}
+
+// WriteHeader 将字典写入header
+func (f *Frame) WriteHeader(m map[string]string) error {
+	buf, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	f.Header = buf
+	return nil
+}
+
+// ReadHeader 解析header
+func (f *Frame) ReadHeader() (map[string]string, error) {
+	m := make(map[string]string)
+	if f.Header == nil {
+		return m, nil
+	}
+	err := json.Unmarshal(f.Header, &m)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
 }

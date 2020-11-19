@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"io"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -9,45 +10,73 @@ import (
 )
 
 type responseGuard struct {
-	response *Frame
-	c        sync.Cond
+	ch chan *Frame
 }
 
 type streamGuard struct {
 	ch chan *Frame
 }
 
-type Server struct {
-	idSequece    uint32
-	conn         net.Conn
-	respGuards   sync.Map
-	streamGuards sync.Map
+type writeCloser struct {
+	server *Server
 }
 
+func (w *writeCloser) Write(buf []byte) (int, error) {
+	return w.server._conn.Write(buf)
+}
+
+func (w *writeCloser) Close() error {
+	w.server.writerLock.Unlock()
+	return nil
+}
+
+// NewWriteCloser 请避免直接使用_conn对象进行写入，会产生时序错乱问题
+// 当需要调用原始conn连接写入数据时，需要创建临时的WriteCloser
+// 创建时会请求对原始连接进行上锁
+// 写入数据完毕后需要手动调用Close，释放锁
+func (s *Server) NewWriteCloser() io.WriteCloser {
+	s.writerLock.Lock()
+	return &writeCloser{s}
+}
+
+// Server 双向数据传输服务
+type Server struct {
+	idSequece    uint32
+	_conn        net.Conn
+	respGuards   sync.Map
+	streamGuards sync.Map
+	cmdFuncMap   map[string]OnRequestFunc
+
+	writerLock sync.Mutex
+}
+
+// NewServer 创建
 func NewServer(conn net.Conn) *Server {
 	return &Server{
 		idSequece: 0,
-		conn:      conn,
+		_conn:     conn,
 	}
 }
 
+// NewID 生成不断自增的唯一ID
 func (s *Server) NewID() uint32 {
 	return atomic.AddUint32(&s.idSequece, 1)
 }
 
+// Run 执行读取程序，不断解析收到的数据包
 func (s *Server) Run() error {
 
 	var err error
 	for {
 		frame := &Frame{}
-		_, err = frame.ReadFrom(s.conn)
+		_, err = frame.ReadFrom(s._conn)
 		if err != nil {
 			return err
 		}
 		switch frame.Type {
 		case FrameRequest:
 			go s.onRequest(frame)
-		case FrameResponse:
+		case FrameResponseOK, FrameResponseErr:
 			go s.onResponse(frame)
 		case FrameStreamData:
 			s.onStreamData(frame)
@@ -57,37 +86,21 @@ func (s *Server) Run() error {
 
 // request 发送一个RequestFrame，并等待对端返回一个ResponseFrame
 func (s *Server) request(req *Frame) (*Frame, error) {
-	guard := &responseGuard{}
+	guard := &responseGuard{
+		ch: make(chan *Frame),
+	}
 	s.respGuards.Store(req.ID, guard)
 
-	_, err := req.WriteTo(s.conn)
+	w := s.NewWriteCloser()
+	_, err := req.WriteTo(w)
+	w.Close()
 	if err != nil {
 		s.respGuards.Delete(req.ID)
 		return nil, err
 	}
 
-	guard.c.Wait()
-	return guard.response, nil
-}
-
-// onRequest 接收到对端的一个RequestFrame
-func (s *Server) onRequest(req *Frame) {
-	// process frame
-
-	// response
-	resp := &Frame{
-		ID:        0,
-		Type:      FrameResponse,
-		SessionID: req.ID,
-		Header:    nil,
-		DataType:  BinaryData,
-		Data:      nil,
-	}
-
-	_, err := resp.WriteTo(s.conn)
-	if err != nil {
-		log.Get().WithError(err).Error("write response failed")
-	}
+	resp := <-guard.ch
+	return resp, nil
 }
 
 // onResponse 接收到对端的一个Response
@@ -102,8 +115,8 @@ func (s *Server) onResponse(f *Frame) {
 	s.respGuards.Delete(f.SessionID)
 
 	guard := val.(*responseGuard)
-	guard.response = f
-	guard.c.Signal()
+	guard.ch <- f
+	close(guard.ch)
 }
 
 // onSteramData 接收到对端的一个数据传输包

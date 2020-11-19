@@ -72,7 +72,9 @@ func (stream *streamRW) Write(buf []byte) (int, error) {
 		Data:      buf,
 	}
 
-	wn, err := frame.WriteTo(stream.server.conn)
+	wc := stream.server.NewWriteCloser()
+	wn, err := frame.WriteTo(wc)
+	wc.Close()
 
 	written := int(wn - frameStableBufSize)
 	if written < 0 {
@@ -81,3 +83,5 @@ func (stream *streamRW) Write(buf []byte) (int, error) {
 
 	return written, err
 }
+
+// todo: stream的生命周期管理，超时、关闭
