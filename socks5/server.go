@@ -1,97 +1,71 @@
 package socks5
 
 import (
-	"errors"
 	"io"
 	"net"
-	"strings"
-
-	"github.com/GZShi/net-agent/transport"
 )
 
-// Dialer 拨号函数
-type Dialer func(network string, address string) (io.ReadWriteCloser, error)
-type BlockChecker func(string, string, string) error
+// DialFunc 拨号函数
+type DialFunc func(network string, address string) (io.ReadWriteCloser, error)
+
+// AuthPswdFunc 认证账号密码
+type AuthPswdFunc func(username, password string) error
 
 // Server Socks5服务
 type Server interface {
-	SetDialer(Dialer)
+	SetDialFunc(DialFunc)
 	EnableNoAuth()
-	EnableAuthPswd()
+	EnableAuthPswd(AuthPswdFunc)
 	ListenAndRun(string) error
 	Run(net.Listener) error
 }
 
 type server struct {
-	secret string
-	dialer Dialer
+	secret     string
+	dialFn     DialFunc
+	authPswdFn AuthPswdFunc
 }
 
 // NewServer 创建新的socks5协议服务端
-func NewServer() *Server {
-	return &Server{}
+func NewServer() Server {
+	return &server{}
 }
 
 // Run 将服务跑起来
-func (p *Server) Run(listener net.Listener) error {
+func (s *server) Run(listener net.Listener) error {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			return err
 		}
 
-		go HandleSocks5Request(conn, conn, conn, p.secret, p.dialer)
+		go s.serve(conn)
 	}
 }
 
 // ListenAndRun 监听并服务
-func (p *Server) ListenAndRun(addr string) error {
+func (s *server) ListenAndRun(addr string) error {
 	l, err := net.Listen("tcp4", addr)
 	if err != nil {
 		return err
 	}
-	return p.Run(l)
+	return s.Run(l)
 }
 
-func NewDefaultDialer() Dialer {
-	return func(sourceAddr, network, targetAddr, clientName string) (io.ReadWriteCloser, error) {
-		return nil, nil
-	}
-}
+func (s *server) serve(conn net.Conn) error {
+	defer conn.Close()
 
-func ParseClientName(clientName string) (userName, channelName string, err error) {
-	authInfos := strings.Split(clientName, "@")
-	if len(authInfos) != 2 {
-		return "", "", errors.New("bad client name")
-	}
-	userName = authInfos[0]
-	channelName = authInfos[1]
-	if len(channelName) < 3 {
-		return "", "", errors.New("channel name is too short")
+	var hs handshakeData
+	_, err := hs.ReadFrom(conn)
+	if err != nil {
+		return err
 	}
 
-	err = nil
-	return
-}
+	// todo: auth check
 
-// NewTunnelClusterDialer 基于Tunnel Cluster创建网络连接
-func NewTunnelClusterDialer(cluster *transport.TunnelCluster, checker BlockChecker) Dialer {
-	return func(sourceAddr, network, targetAddr, clientName string) (io.ReadWriteCloser, error) {
-		userName, channelName, err := ParseClientName(clientName)
-		if err != nil {
-			return nil, err
-		}
-		// 黑白名单访问限制
-		if err := checker(network, targetAddr, channelName); err != nil {
-			return nil, err
-		}
-		return cluster.Dial(sourceAddr, network, targetAddr, channelName, userName)
-	}
-}
-
-// NewTunnelDialer 基于Tunnel创建网络连接
-func NewTunnelDialer(t *transport.Tunnel, channelName, userName string) Dialer {
-	return func(sourceAddr, network, targetAddr, clientName string) (io.ReadWriteCloser, error) {
-		return t.Dial(sourceAddr, network, targetAddr, channelName, userName)
+	var req request
+	_, err := req.ReadFrom(conn)
+	if err != nil {
+		return err
 	}
 }
