@@ -10,18 +10,26 @@ import (
 )
 
 // Dialer 拨号函数
-type Dialer func(string, string, string, string) (io.ReadWriteCloser, error)
+type Dialer func(network string, address string) (io.ReadWriteCloser, error)
 type BlockChecker func(string, string, string) error
 
 // Server Socks5服务
-type Server struct {
+type Server interface {
+	SetDialer(Dialer)
+	EnableNoAuth()
+	EnableAuthPswd()
+	ListenAndRun(string) error
+	Run(net.Listener) error
+}
+
+type server struct {
 	secret string
 	dialer Dialer
 }
 
-// NewSocks5Server 创建新的socks5协议服务端
-func NewSocks5Server(secret string, dialer Dialer) *Server {
-	return &Server{secret, dialer}
+// NewServer 创建新的socks5协议服务端
+func NewServer() *Server {
+	return &Server{}
 }
 
 // Run 将服务跑起来
