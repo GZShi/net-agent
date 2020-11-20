@@ -28,7 +28,7 @@ func TestServerStream(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			rw := s1.NewStreamRW(1, 2)
+			rw := s1.NewStream(1, 2)
 			for _, payload := range payloads {
 				buf := make([]byte, len(payload))
 				_, err := io.ReadFull(rw, buf)
@@ -45,7 +45,7 @@ func TestServerStream(t *testing.T) {
 			}
 		}()
 
-		rw := s2.NewStreamRW(2, 1)
+		rw := s2.NewStream(2, 1)
 		for _, payload := range payloads {
 			pos := 0
 			for pos < len(payload) {

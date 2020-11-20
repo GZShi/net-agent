@@ -5,7 +5,7 @@ import "testing"
 func TestServerRequest(t *testing.T) {
 	s1, s2 := makePipe()
 
-	s2.On("echo", func(ctx Context) {
+	s2.Listen("echo", func(ctx Context) {
 		text, err := ctx.GetText()
 		if err != nil {
 			t.Error(err)

@@ -2,6 +2,7 @@ package socks5
 
 import (
 	"errors"
+	"io"
 	"net"
 	"strings"
 
@@ -9,7 +10,7 @@ import (
 )
 
 // Dialer 拨号函数
-type Dialer func(string, string, string, string) (net.Conn, error)
+type Dialer func(string, string, string, string) (io.ReadWriteCloser, error)
 type BlockChecker func(string, string, string) error
 
 // Server Socks5服务
@@ -45,7 +46,7 @@ func (p *Server) ListenAndRun(addr string) error {
 }
 
 func NewDefaultDialer() Dialer {
-	return func(sourceAddr, network, targetAddr, clientName string) (net.Conn, error) {
+	return func(sourceAddr, network, targetAddr, clientName string) (io.ReadWriteCloser, error) {
 		return nil, nil
 	}
 }
@@ -67,7 +68,7 @@ func ParseClientName(clientName string) (userName, channelName string, err error
 
 // NewTunnelClusterDialer 基于Tunnel Cluster创建网络连接
 func NewTunnelClusterDialer(cluster *transport.TunnelCluster, checker BlockChecker) Dialer {
-	return func(sourceAddr, network, targetAddr, clientName string) (net.Conn, error) {
+	return func(sourceAddr, network, targetAddr, clientName string) (io.ReadWriteCloser, error) {
 		userName, channelName, err := ParseClientName(clientName)
 		if err != nil {
 			return nil, err
@@ -82,7 +83,7 @@ func NewTunnelClusterDialer(cluster *transport.TunnelCluster, checker BlockCheck
 
 // NewTunnelDialer 基于Tunnel创建网络连接
 func NewTunnelDialer(t *transport.Tunnel, channelName, userName string) Dialer {
-	return func(sourceAddr, network, targetAddr, clientName string) (net.Conn, error) {
+	return func(sourceAddr, network, targetAddr, clientName string) (io.ReadWriteCloser, error) {
 		return t.Dial(sourceAddr, network, targetAddr, channelName, userName)
 	}
 }

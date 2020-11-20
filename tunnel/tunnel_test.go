@@ -4,11 +4,11 @@ import (
 	"net"
 )
 
-func makePipe() (*Server, *Server) {
+func makePipe() (Tunnel, Tunnel) {
 	send, recv := net.Pipe()
 
-	s1 := NewServer(send)
-	s2 := NewServer(recv)
+	s1 := New(send)
+	s2 := New(recv)
 
 	go s1.Run()
 	go s2.Run()

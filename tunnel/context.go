@@ -32,7 +32,7 @@ type OnRequestFunc func(Context)
 //
 
 type context struct {
-	server    *Server
+	tunnel    *tunnel
 	req       *Frame
 	header    map[string]string
 	resp      *Frame
@@ -45,13 +45,13 @@ const (
 	cmdKey = "cmd"
 )
 
-func (s *Server) newContext(req *Frame) Context {
+func (t *tunnel) newContext(req *Frame) Context {
 	ctx := &context{
-		server: s,
+		tunnel: t,
 		req:    req,
 		header: nil,
 		resp: &Frame{
-			ID:        s.NewID(),
+			ID:        t.NewID(),
 			Type:      FrameResponseErr,
 			SessionID: req.ID,
 			Header:    nil,
@@ -142,7 +142,7 @@ func (ctx *context) response(dataType uint8, data []byte, err error) {
 func (ctx *context) Flush() {
 	f := <-ctx.respChan
 	if f != nil {
-		wc := ctx.server.NewWriteCloser()
+		wc := ctx.tunnel.NewWriteCloser()
 		_, err := f.WriteTo(wc)
 		wc.Close()
 		if err != nil {
