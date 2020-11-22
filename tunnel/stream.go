@@ -3,11 +3,13 @@ package tunnel
 import (
 	"errors"
 	"io"
+	"net"
 )
 
 // Stream 数据通道流
 type Stream interface {
 	io.ReadWriteCloser
+	net.Conn
 	Bind(sessionID uint32) error
 }
 

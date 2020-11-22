@@ -14,8 +14,6 @@ type Tunnel interface {
 	SendText(string, string) (string, error)
 
 	Listen(string, OnRequestFunc)
-
-	NewID() uint32
 }
 
 // New 创建

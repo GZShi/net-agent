@@ -5,31 +5,22 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Server",
+      "name": "Debug Tunnel/Sample:Server",
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/exec",
+      "program": "${workspaceFolder}/tunnel/sample",
       "env": {},
-      "args": ["-config", "E:/remotework/local.server.json"]
+      "args": ["-m", "s"]
     },
     {
-      "name": "Agent",
+      "name": "Debug Tunnel/Sample:Client",
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/exec/main.go",
+      "program": "${workspaceFolder}/tunnel/sample",
       "env": {},
-      "args": ["-config", "../dist/config.json"]
-    },
-    {
-      "name": "Visitor",
-      "type": "go",
-      "request": "launch",
-      "mode": "auto",
-      "program": "${workspaceFolder}/exec",
-      "env": {},
-      "args": ["-config", "E:/remotework/local.visitor.json"]
+      "args": ["-m", "c"]
     }
   ]
 }

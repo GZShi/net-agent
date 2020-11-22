@@ -1,34 +1,41 @@
 package socks5
 
 import (
-	"io"
 	"net"
 )
 
-// DialFunc 拨号函数
-type DialFunc func(network string, address string) (io.ReadWriteCloser, error)
+// Requester 解析客户端命令的函数
+type Requester func(Request) (net.Conn, error)
 
 // AuthPswdFunc 认证账号密码
 type AuthPswdFunc func(username, password string) error
 
 // Server Socks5服务
 type Server interface {
-	SetDialFunc(DialFunc)
-	EnableNoAuth()
-	EnableAuthPswd(AuthPswdFunc)
+	SetRequster(Requester)
+	SetAuthChecker(AuthChecker)
 	ListenAndRun(string) error
 	Run(net.Listener) error
 }
 
 type server struct {
-	secret     string
-	dialFn     DialFunc
-	authPswdFn AuthPswdFunc
+	requester Requester
+	checker   AuthChecker
 }
 
 // NewServer 创建新的socks5协议服务端
 func NewServer() Server {
-	return &server{}
+	return &server{
+		requester: DefaultRequester,
+		checker:   DefaultAuthChecker(),
+	}
+}
+
+func (s *server) SetRequster(in Requester) {
+	s.requester = in
+}
+func (s *server) SetAuthChecker(in AuthChecker) {
+	s.checker = in
 }
 
 // Run 将服务跑起来
@@ -39,7 +46,9 @@ func (s *server) Run(listener net.Listener) error {
 			return err
 		}
 
-		go s.serve(conn)
+		go func() {
+			s.serve(conn)
+		}()
 	}
 }
 
@@ -55,17 +64,46 @@ func (s *server) ListenAndRun(addr string) error {
 func (s *server) serve(conn net.Conn) error {
 	defer conn.Close()
 
-	var hs handshakeData
-	_, err := hs.ReadFrom(conn)
+	//
+	// 使用checker协议进行握手和身份校验
+	//
+	resp, next, err := s.checker.Start(conn)
+	if err != nil {
+		return err
+	}
+	_, err = conn.Write(resp)
 	if err != nil {
 		return err
 	}
 
-	// todo: auth check
+	for next {
+		resp, next, err = s.checker.Next(conn)
+		if err != nil {
+			return err
+		}
+		_, err = conn.Write(resp)
+	}
 
+	//
+	// 执行命令
+	//
 	var req request
-	_, err := req.ReadFrom(conn)
+	_, err = req.ReadFrom(conn)
 	if err != nil {
 		return err
 	}
+
+	target, err := s.requester(&req)
+	if err != nil {
+		return err
+	}
+	_, err = conn.Write([]byte{dataVersion, repSuccess,
+		0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	})
+	if err != nil {
+		return err
+	}
+
+	_, _, err = Link(conn, target)
+	return err
 }

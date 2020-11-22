@@ -10,6 +10,10 @@ import (
 
 func TestServerStream(t *testing.T) {
 	s1, s2 := makePipe()
+	stream1, sid1 := s1.NewStream()
+	stream2, sid2 := s2.NewStream()
+	stream1.Bind(sid2)
+	stream2.Bind(sid1)
 
 	t.Run("test stream", func(t *testing.T) {
 		largeData := []byte{}
@@ -28,10 +32,9 @@ func TestServerStream(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			rw := s1.NewStream(1, 2)
 			for _, payload := range payloads {
 				buf := make([]byte, len(payload))
-				_, err := io.ReadFull(rw, buf)
+				_, err := io.ReadFull(stream1, buf)
 				if err != nil {
 					t.Error(err)
 					return
@@ -45,7 +48,6 @@ func TestServerStream(t *testing.T) {
 			}
 		}()
 
-		rw := s2.NewStream(2, 1)
 		for _, payload := range payloads {
 			pos := 0
 			for pos < len(payload) {
@@ -53,7 +55,7 @@ func TestServerStream(t *testing.T) {
 				if end > len(payload) {
 					end = len(payload)
 				}
-				_, err := rw.Write(payload[pos:end])
+				_, err := stream2.Write(payload[pos:end])
 				if err != nil {
 					t.Error(err)
 					return

@@ -6,14 +6,19 @@ import (
 )
 
 const (
+	// VersionSocks5 协议版本号
 	VersionSocks5 = uint8(5)
 )
 
 var (
-	VersionNotSupport  = errors.New("socks version not supported")
-	MethodsIsEmpty     = errors.New("socks methods is empty")
-	MethodsNotSupport  = errors.New("socks methods not supported")
-	MethodsSizeIllegal = errors.New("socks methos size illegal")
+	// ErrVersionNotSupport ...
+	ErrVersionNotSupport = errors.New("socks version not supported")
+	// ErrMethodsIsEmpty ...
+	ErrMethodsIsEmpty = errors.New("socks methods is empty")
+	// ErrMethodsNotSupport ...
+	ErrMethodsNotSupport = errors.New("socks methods not supported")
+	// ErrMethodsSizeIllegal ...
+	ErrMethodsSizeIllegal = errors.New("socks methos size illegal")
 )
 
 type handshakeData struct {
@@ -30,12 +35,12 @@ func (s *handshakeData) ReadFrom(r io.Reader) (readed int64, err error) {
 	}
 
 	if buf[0] != VersionSocks5 {
-		return readed, VersionNotSupport
+		return readed, ErrVersionNotSupport
 	}
 	s.version = buf[0]
 
 	if buf[1] == 0 {
-		return readed, MethodsIsEmpty
+		return readed, ErrMethodsIsEmpty
 	}
 	s.methods = make([]byte, buf[1])
 	rn, err = io.ReadFull(r, s.methods)
@@ -46,7 +51,7 @@ func (s *handshakeData) ReadFrom(r io.Reader) (readed int64, err error) {
 
 func (s *handshakeData) WriteTo(w io.Writer) (written int64, err error) {
 	if len(s.methods) > 255 {
-		return 0, MethodsSizeIllegal
+		return 0, ErrMethodsSizeIllegal
 	}
 	wn, err := w.Write([]byte{s.version, uint8(len(s.methods))})
 	written += int64(wn)
