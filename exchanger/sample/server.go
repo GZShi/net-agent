@@ -36,12 +36,12 @@ func main() {
 
 func serve(conn net.Conn) {
 	defer conn.Close()
-	_, err := conferReqOnServer(conn, "hello")
+	cc, err := CipherConn(conn, "password", false)
 	if err != nil {
-		return
+		// todo: log error
 	}
 
-	t := tunnel.New(conn)
+	t := tunnel.New(cc)
 	t.Listen("check/acl", nil)
 	t.Listen("dial/direct", nil)
 	t.Listen("dial/tunnel", nil)
