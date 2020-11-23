@@ -3,6 +3,7 @@ package tunnel
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 
 	log "github.com/GZShi/net-agent/logger"
@@ -32,12 +33,14 @@ type OnRequestFunc func(Context)
 //
 
 type context struct {
-	tunnel    *tunnel
-	req       *Frame
-	header    map[string]string
-	resp      *Frame
-	respChan  chan *Frame
-	onceParse sync.Once
+	tunnel     *tunnel
+	req        *Frame
+	header     map[string]string
+	resp       *Frame
+	respChan   chan *Frame
+	respLock   sync.Mutex
+	respClosed bool
+	onceParse  sync.Once
 }
 
 // header keys
@@ -58,7 +61,8 @@ func (t *tunnel) newContext(req *Frame) Context {
 			DataType:  TextData,
 			Data:      nil,
 		},
-		respChan: make(chan *Frame, 1),
+		respChan:   make(chan *Frame, 1),
+		respClosed: false,
 	}
 	return ctx
 }
@@ -124,6 +128,26 @@ func (ctx *context) Error(err error) {
 	ctx.response(0, nil, err)
 }
 
+func (ctx *context) send(resp *Frame) (err error) {
+	ctx.respLock.Lock()
+	if ctx.respClosed {
+		return errors.New("resp channel closed")
+	}
+	defer func() {
+		ctx.respLock.Unlock()
+		if r := recover(); r != nil {
+			err = fmt.Errorf("recovered: %v", r)
+		}
+		if err != nil {
+			// todo: log the error
+		}
+	}()
+	ctx.respChan <- resp
+	close(ctx.respChan)
+	ctx.respClosed = true
+	return nil
+}
+
 func (ctx *context) response(dataType uint8, data []byte, err error) {
 	if err != nil {
 		ctx.resp.Type = FrameResponseErr
@@ -134,8 +158,7 @@ func (ctx *context) response(dataType uint8, data []byte, err error) {
 		ctx.resp.DataType = dataType
 		ctx.resp.Data = data
 	}
-	ctx.respChan <- ctx.resp
-	close(ctx.respChan)
+	ctx.send(ctx.resp)
 	ctx.Flush()
 }
 

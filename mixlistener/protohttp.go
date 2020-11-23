@@ -2,7 +2,6 @@ package mixlistener
 
 import (
 	"bytes"
-	"net"
 )
 
 type httpListener struct {
@@ -11,11 +10,8 @@ type httpListener struct {
 
 // HTTP 监听HTTP协议
 func HTTP() ProtoListener {
-	return &protobase{
-		name:    HTTPName,
-		ch:      make(chan net.Conn, 255),
-		network: "",
-		addr:    "",
+	return &httpListener{
+		ProtoListener: NewProtobase(HTTPName),
 	}
 }
 
