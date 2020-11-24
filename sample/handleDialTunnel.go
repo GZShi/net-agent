@@ -9,9 +9,9 @@ import (
 )
 
 type dialTunnelRequest struct {
-	SessionID      uint32 `json:"sid"`
-	TargetTunnelID uint32 `json:"tid"`
-	Address        string `json:"addr"`
+	SessionID      uint32        `json:"sid"`
+	TargetTunnelID exchanger.TID `json:"tid"`
+	Address        string        `json:"addr"`
 }
 
 type dialTunnelResponse struct {

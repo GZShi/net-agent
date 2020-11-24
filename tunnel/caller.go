@@ -16,7 +16,7 @@ type caller struct {
 
 func (t *tunnel) NewCaller(cmd string, frameID uint32) Caller {
 	return &caller{
-		tunnelID: 0, // todo: get tunnel id
+		tunnelID: 0, // todo:2 get tunnel id
 		cmd:      cmd,
 		frameID:  frameID,
 	}

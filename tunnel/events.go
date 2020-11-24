@@ -40,7 +40,7 @@ func (t *tunnel) onResponse(f *Frame) {
 		log.Get().WithField("sessionID", f.SessionID).Error("can't find responseGuard")
 		return
 	}
-	// Todo: go1.15中提供了LoadAndDelete方法
+	// Todo:5 go1.15中提供了LoadAndDelete方法
 	t.respGuards.Delete(f.SessionID)
 
 	guard := val.(*frameGuard)

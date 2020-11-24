@@ -16,7 +16,7 @@ func connectAsClient(addr, password string) {
 	defer conn.Close()
 	cc, err := cipherconn.New(conn, password)
 	if err != nil {
-		// todo: log error
+		// todo:3 log error
 		return
 	}
 

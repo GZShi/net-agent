@@ -142,4 +142,4 @@ func (stream *streamRWC) Close() error {
 	return nil
 }
 
-// todo: stream的生命周期管理，超时、关闭
+// todo:4 stream的生命周期管理，超时、关闭

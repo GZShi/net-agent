@@ -21,6 +21,7 @@ type ProtoListener interface {
 	net.Listener
 }
 
+// Protobase 实现协议解析的基类
 type Protobase struct {
 	name    string
 	ch      chan net.Conn
@@ -28,6 +29,7 @@ type Protobase struct {
 	addr    string
 }
 
+// NewProtobase 创建新的协议基础
 func NewProtobase(name string) *Protobase {
 	return &Protobase{
 		name:    name,
@@ -37,10 +39,12 @@ func NewProtobase(name string) *Protobase {
 	}
 }
 
+// Name 协议名称
 func (base *Protobase) Name() string {
 	return base.name
 }
 
+// Accept net.Listener协议方法
 func (base *Protobase) Accept() (net.Conn, error) {
 	conn := <-base.ch
 	if conn == nil {
@@ -49,33 +53,40 @@ func (base *Protobase) Accept() (net.Conn, error) {
 	return conn, nil
 }
 
+// Close net.Listener协议方法
 func (base *Protobase) Close() error {
 	close(base.ch)
 	return nil
 }
 
+// SetAddr 设置Listener的地址，支持net.Listener.Addr返回正确值
 func (base *Protobase) SetAddr(network, addr string) {
 	base.network = network
 	base.addr = addr
 }
 
+// Addr net.Listener协议方法
 func (base *Protobase) Addr() net.Addr {
-	// todo
+	// todo:5
 	return base
 }
 
+// Network net.Addr 协议方法
 func (base *Protobase) Network() string {
 	return base.network
 }
 
+// Network net.Addr 协议方法
 func (base *Protobase) String() string {
 	return base.addr
 }
 
+// Taste 默认的ProtoListener协议方法，需要重载
 func (base *Protobase) Taste(buf []byte) bool {
 	return false
 }
 
+// Recieve 默认的ProtoListener协议方法
 func (base *Protobase) Recieve(conn net.Conn) error {
 	base.ch <- conn
 	return nil

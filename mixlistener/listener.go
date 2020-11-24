@@ -58,7 +58,7 @@ func (ml *mixlisn) RegisterBuiltIn(protoNames ...string) {
 		}
 
 		if err != nil {
-			// todo: log error
+			// todo:3 log error
 		}
 	}
 }
@@ -91,7 +91,7 @@ func (ml *mixlisn) Run() error {
 			}()
 			peeked, err := conn.Reader.Peek(3)
 			if err != nil {
-				// todo: log the error
+				// todo:3 log the error
 				return
 			}
 
@@ -102,12 +102,12 @@ func (ml *mixlisn) Run() error {
 					if err == nil {
 						conn = nil // p.Recieve成功后，conn的生命周期将由p进行管理
 					}
-					// todo: log error
+					// todo:3 log error
 					return
 				}
 			}
 
-			// todo: log the error: can't match any proto
+			// todo:5 log the error: can't match any proto
 		}(newBufconn(raw))
 	}
 }

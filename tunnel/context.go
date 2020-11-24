@@ -88,7 +88,7 @@ func (ctx *context) GetTunnel() Tunnel {
 func (ctx *context) GetCallStackStr(newCall Caller) (string, error) {
 	ctx.parse()
 
-	// todo: 将header["stack"]进行解析，并且与newCall比对
+	// todo:2 将header["stack"]进行解析，并且与newCall比对
 	// 然后将stack+newCall进行序列化输出
 	return "", nil
 }
@@ -157,7 +157,7 @@ func (ctx *context) send(resp *Frame) (err error) {
 			err = fmt.Errorf("recovered: %v", r)
 		}
 		if err != nil {
-			// todo: log the error
+			// todo:3 log the error
 		}
 	}()
 	ctx.respChan <- resp

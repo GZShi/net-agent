@@ -41,7 +41,7 @@ func serve(ts exchanger.Cluster, conn net.Conn, password string) {
 	defer conn.Close()
 	cc, err := cipherconn.New(conn, password)
 	if err != nil {
-		// todo: log error
+		// todo:3 log error
 		return
 	}
 
