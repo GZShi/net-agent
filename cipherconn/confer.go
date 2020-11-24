@@ -9,7 +9,6 @@ import (
 	"net"
 	"sync"
 
-	log "github.com/GZShi/net-agent/logger"
 	"golang.org/x/crypto/hkdf"
 )
 
@@ -86,7 +85,7 @@ func sendIV(w io.Writer, data *ivdata) error {
 }
 
 func makeCipherStream(password string, iv []byte) (cipher.Stream, error) {
-	log.Get().WithField("pswd", password).WithField("iv", iv).Debug("create cipher stream")
+	// log.Get().WithField("pswd", password).WithField("iv", iv).Debug("create cipher stream")
 	key := make([]byte, 16)
 	if err := hkdfSha1([]byte(password), key); err != nil {
 		return nil, err

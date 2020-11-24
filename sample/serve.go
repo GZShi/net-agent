@@ -15,8 +15,9 @@ func listenAndServe(addr, password string) {
 
 	listener, err := net.Listen("tcp4", addr)
 	if err != nil {
-		log.Get().WithError(err).Error("listen failed: ", addr)
+		log.Get().WithError(err).Error("listen ", addr, " failed")
 	}
+	log.Get().Info("listen on ", addr)
 
 	var wg sync.WaitGroup
 
@@ -41,7 +42,7 @@ func serve(ts exchanger.Cluster, conn net.Conn, password string) {
 	defer conn.Close()
 	cc, err := cipherconn.New(conn, password)
 	if err != nil {
-		// todo:3 log error
+		log.Get().WithError(err).Error("create cipherconn failed")
 		return
 	}
 
@@ -51,5 +52,7 @@ func serve(ts exchanger.Cluster, conn net.Conn, password string) {
 	t.Listen("dial/direct", handleDialDirect)               // 直接通过对端网络创建网络连接
 	t.Listen("dial/tunnel", newDialTunnelHandler(ts))       // 通过对端网络进行路由，创建网络连接
 
+	log.Get().Info("tunnel created")
 	t.Run()
+	log.Get().Info("tunnel closed")
 }
