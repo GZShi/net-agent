@@ -3,6 +3,7 @@ package main
 import (
 	"net"
 
+	"github.com/GZShi/net-agent/cipherconn"
 	"github.com/GZShi/net-agent/tunnel"
 	"github.com/GZShi/net-agent/utils"
 )
@@ -14,7 +15,8 @@ func connectAsAgent(addr, password string) {
 	}
 
 	defer conn.Close()
-	cc, err := CipherConn(conn, password, true)
+	
+	cc, err := cipherconn.New(conn, password)
 	if err != nil {
 		return
 	}

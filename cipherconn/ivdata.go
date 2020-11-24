@@ -1,4 +1,4 @@
-package main
+package cipherconn
 
 import (
 	"crypto/rand"
@@ -13,13 +13,17 @@ type ivdata struct {
 
 func newIvData() *ivdata {
 	return &ivdata{
-		code: 0x09,
+		code:  0x09,
+		ivLen: 16,
 	}
 }
 
 func (p *ivdata) Gen() error {
 	p.iv = make([]byte, p.ivLen)
 	_, err := rand.Read(p.iv)
+	for i := 0; i < len(p.iv); i++ {
+		p.iv[i] = 0
+	}
 	return err
 }
 
@@ -36,7 +40,7 @@ func (p *ivdata) ReadFrom(r io.Reader) (readed int64, err error) {
 	}
 
 	p.code = buf[0]
-	copy(p.iv, buf[1:1+p.ivLen])
+	p.iv = buf[1 : 1+p.ivLen]
 
 	return readed, nil
 }

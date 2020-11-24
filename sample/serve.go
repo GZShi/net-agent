@@ -4,6 +4,7 @@ import (
 	"net"
 	"sync"
 
+	"github.com/GZShi/net-agent/cipherconn"
 	"github.com/GZShi/net-agent/exchanger"
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/tunnel"
@@ -38,7 +39,7 @@ func listenAndServe(addr, password string) {
 
 func serve(ts exchanger.Cluster, conn net.Conn, password string) {
 	defer conn.Close()
-	cc, err := CipherConn(conn, password, false)
+	cc, err := cipherconn.New(conn, password)
 	if err != nil {
 		// todo: log error
 		return
