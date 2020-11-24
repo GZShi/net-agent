@@ -11,6 +11,10 @@ import (
 
 // Context 用于处理RPC请求的上下文对象
 type Context interface {
+	// context
+	GetTunnel() Tunnel
+	GetCallStackStr(Caller) (string, error)
+
 	// for request
 	GetCmd() string
 	GetData() []byte
@@ -36,6 +40,7 @@ type context struct {
 	tunnel     *tunnel
 	req        *Frame
 	header     map[string]string
+	caller     []Caller
 	resp       *Frame
 	respChan   chan *Frame
 	respLock   sync.Mutex
@@ -53,6 +58,7 @@ func (t *tunnel) newContext(req *Frame) Context {
 		tunnel: t,
 		req:    req,
 		header: nil,
+		caller: nil,
 		resp: &Frame{
 			ID:        t.NewID(),
 			Type:      FrameResponseErr,
@@ -73,6 +79,18 @@ func (ctx *context) parse() {
 			ctx.header, _ = ctx.req.ReadHeader()
 		}
 	})
+}
+
+func (ctx *context) GetTunnel() Tunnel {
+	return ctx.tunnel
+}
+
+func (ctx *context) GetCallStackStr(newCall Caller) (string, error) {
+	ctx.parse()
+
+	// todo: 将header["stack"]进行解析，并且与newCall比对
+	// 然后将stack+newCall进行序列化输出
+	return "", nil
 }
 
 func (ctx *context) GetCmd() string {

@@ -5,8 +5,8 @@ import (
 
 	log "github.com/GZShi/net-agent/logger"
 	ml "github.com/GZShi/net-agent/mixlistener"
-	"github.com/GZShi/net-agent/socks5"
 	"github.com/GZShi/net-agent/tunnel"
+	"github.com/GZShi/net-agent/utils"
 )
 
 func runServer(addr string) error {
@@ -58,7 +58,7 @@ func serve(conn net.Conn) {
 		resp.SessionID = sid
 		stream.Bind(req.SessionID)
 
-		go socks5.Link(stream, conn)
+		go utils.LinkReadWriteCloser(stream, conn)
 		log.Get().Info("dial sucess")
 
 		ctx.JSON(&resp)

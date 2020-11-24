@@ -9,9 +9,11 @@ import (
 // Tunnel 通道协议
 type Tunnel interface {
 	Run() error
+	Stop() error
+
 	NewStream() (Stream, uint32)
-	SendJSON(string, interface{}, interface{}) error
-	SendText(string, string) (string, error)
+	SendJSON(Context, string, interface{}, interface{}) error
+	SendText(Context, string, string) (string, error)
 
 	Listen(string, OnRequestFunc)
 }
@@ -63,4 +65,8 @@ func (t *tunnel) Run() error {
 			t.onStreamData(frame)
 		}
 	}
+}
+
+func (t *tunnel) Stop() error {
+	return t._conn.Close()
 }

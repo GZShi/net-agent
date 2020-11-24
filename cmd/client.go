@@ -53,7 +53,7 @@ func makeRequester(t tunnel.Tunnel) socks5.Requester {
 func dialWithTunnel(t tunnel.Tunnel, addr string) (net.Conn, error) {
 	stream, sid := t.NewStream()
 	resp := &dialResponse{}
-	err := t.SendJSON("dial", &dialReqeust{"tcp4", addr, sid}, resp)
+	err := t.SendJSON(nil, "dial", &dialReqeust{"tcp4", addr, sid}, resp)
 	if err != nil {
 		return nil, err
 	}

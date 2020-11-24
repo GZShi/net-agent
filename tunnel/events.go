@@ -22,7 +22,10 @@ func (t *tunnel) onRequest(req *Frame) {
 		ctx.Error(fmt.Errorf("cmd(%v) not found", cmd))
 		return
 	}
-
+	if fn == nil {
+		ctx.Error(fmt.Errorf("cmd(%v) handler is nil", cmd))
+		return
+	}
 	fn(ctx)
 }
 

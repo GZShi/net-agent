@@ -16,7 +16,7 @@ func TestServerRequest(t *testing.T) {
 
 	t.Run("test request", func(t *testing.T) {
 		text := "hello,world,there"
-		resp, err := s1.SendText("echo", text)
+		resp, err := s1.SendText(nil, "echo", text)
 		if err != nil {
 			t.Error(err)
 			return

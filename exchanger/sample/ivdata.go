@@ -11,7 +11,7 @@ type ivdata struct {
 	ivLen int
 }
 
-func newAuthRequest() *ivdata {
+func newIvData() *ivdata {
 	return &ivdata{
 		code: 0x09,
 	}

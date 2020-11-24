@@ -25,13 +25,28 @@ func CipherConn(conn net.Conn, password string, isClient bool) (net.Conn, error)
 	if isClient {
 		cc.encoder, cc.decoder, err = clientSideConfer(conn, password)
 	} else {
-		cc.encoder, cc.encoder, err = serverSideConfer(conn, password)
+		cc.encoder, cc.decoder, err = serverSideConfer(conn, password)
 	}
 
 	if err != nil {
 		return nil, err
 	}
 	return cc, nil
+}
+
+func (conn *cipherconn) Write(b []byte) (int, error) {
+	conn.encoder.XORKeyStream(b, b)
+	return conn.Conn.Write(b)
+}
+
+func (conn *cipherconn) Read(b []byte) (rn int, err error) {
+	defer func() {
+		if rn > 0 {
+			conn.decoder.XORKeyStream(b[0:rn], b[0:rn])
+		}
+	}()
+
+	return conn.Conn.Read(b)
 }
 
 //
