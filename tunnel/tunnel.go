@@ -10,12 +10,11 @@ import (
 type Tunnel interface {
 	Run() error
 	Stop() error
+	BindService(s Service) error
 
 	NewStream() (Stream, uint32)
 	SendJSON(Context, string, interface{}, interface{}) error
 	SendText(Context, string, string) (string, error)
-
-	Listen(string, OnRequestFunc)
 }
 
 // New 创建
@@ -32,7 +31,7 @@ type tunnel struct {
 	_conn        net.Conn
 	respGuards   sync.Map
 	streamGuards sync.Map
-	cmdFuncMap   map[string]OnRequestFunc
+	serviceMap   map[string]Service
 
 	writerLock sync.Mutex
 }

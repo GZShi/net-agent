@@ -7,6 +7,7 @@ import (
 	"github.com/GZShi/net-agent/cipherconn"
 	"github.com/GZShi/net-agent/exchanger"
 	log "github.com/GZShi/net-agent/logger"
+	"github.com/GZShi/net-agent/rpc/dial"
 	"github.com/GZShi/net-agent/tunnel"
 )
 
@@ -47,10 +48,7 @@ func serve(ts exchanger.Cluster, conn net.Conn, password string) {
 	}
 
 	t := tunnel.New(cc)
-	t.Listen("join/cluster", newJoinClusterHandler(ts))     // 加入集群
-	t.Listen("detach/cluster", newDetachClusterHandler(ts)) // 离开集群
-	t.Listen("dial/direct", handleDialDirect)               // 直接通过对端网络创建网络连接
-	t.Listen("dial/tunnel", newDialTunnelHandler(ts))       // 通过对端网络进行路由，创建网络连接
+	t.BindService(dial.NewService())
 
 	log.Get().Info("tunnel created")
 	t.Run()

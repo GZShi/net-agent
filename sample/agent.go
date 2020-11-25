@@ -3,10 +3,11 @@ package main
 import (
 	"net"
 
+	"github.com/GZShi/net-agent/rpc/dial"
+
 	"github.com/GZShi/net-agent/cipherconn"
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/tunnel"
-	"github.com/GZShi/net-agent/utils"
 )
 
 func connectAsAgent(addr, password string) {
@@ -28,38 +29,9 @@ func connectAsAgent(addr, password string) {
 	t := tunnel.New(cc)
 
 	// agent 默认只支持直接创建连接
-	t.Listen("dial/dierct", handleDialDirect)
+	t.BindService(dial.NewService())
 
-	go registerAgentToServer(t)
-
-	log.Get().Info("tunnel[agent] created")
+	log.Get().Info("agent created")
 	t.Run()
-	log.Get().Info("tunnel[agent] closed")
-}
-
-func registerAgentToServer(t tunnel.Tunnel) error {
-	if err := joinCluster(t); err != nil {
-		return err
-	}
-
-	// use control c to stop agent work
-	log.Get().Info("press ctrl+c to stop agent work")
-	utils.WaitCtrlC()
-	log.Get().Info("close agent tunnel...")
-
-	detachCluster(t)
-	t.Stop()
-
-	log.Get().Info("agent stopped")
-	return nil
-}
-
-func joinCluster(t tunnel.Tunnel) error {
-	t.SendJSON(nil, "join/cluster", nil, nil)
-	return nil
-}
-
-func detachCluster(t tunnel.Tunnel) error {
-	t.SendJSON(nil, "detach/cluster", nil, nil)
-	return nil
+	log.Get().Info("agent closed")
 }

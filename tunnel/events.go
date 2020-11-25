@@ -2,6 +2,8 @@ package tunnel
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	log "github.com/GZShi/net-agent/logger"
 )
@@ -13,20 +15,30 @@ import (
 func (t *tunnel) onRequest(req *Frame) {
 	// process frame
 	ctx := t.newContext(req)
-	defer ctx.Flush()
-
 	cmd := ctx.GetCmd()
+	parts := strings.Split(cmd, "/")
+	prefix := parts[0]
 
-	fn, found := t.cmdFuncMap[cmd]
+	if t.serviceMap == nil {
+		ctx.Error(fmt.Errorf("service '%v' not found", prefix))
+		return
+	}
+
+	s, found := t.serviceMap[prefix]
 	if !found {
-		ctx.Error(fmt.Errorf("cmd(%v) not found", cmd))
+		ctx.Error(fmt.Errorf("service '%v' not found", prefix))
 		return
 	}
-	if fn == nil {
-		ctx.Error(fmt.Errorf("cmd(%v) handler is nil", cmd))
+	if s == nil {
+		ctx.Error(fmt.Errorf("service '%v' is nil", prefix))
 		return
 	}
-	fn(ctx)
+
+	err := s.Exec(ctx)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
 }
 
 // onResponse 基础事件
@@ -64,6 +76,7 @@ func (t *tunnel) onStreamData(f *Frame) {
 		temp := &frameGuard{
 			ch: make(chan *Frame, 256),
 		}
+
 		val, loaded := t.streamGuards.LoadOrStore(f.SessionID, temp)
 		if loaded {
 			guard = val.(*frameGuard)
@@ -73,6 +86,18 @@ func (t *tunnel) onStreamData(f *Frame) {
 	}
 
 	if guard != nil {
+		// 如果当前guard深度过长，则消费端可能出现了阻塞的情况
+		// 需要关闭连接，否则会阻塞其它Stream正常传输
+		if len(guard.ch) > 200 {
+			go func(sid uint32) {
+				log.Get().Warn("len(chan) > 200")
+				<-time.After(time.Second * 3)
+				if guard != nil && guard.ch != nil && len(guard.ch) > 200 {
+					t.streamGuards.Delete(sid)
+					log.Get().Error("stream guard deleted")
+				}
+			}(f.SessionID)
+		}
 		guard.ch <- f
 	}
 }

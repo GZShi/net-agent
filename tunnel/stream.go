@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"time"
 )
 
 // Stream 数据通道流
@@ -62,7 +63,14 @@ func (stream *streamRWC) Read(buf []byte) (int, error) {
 	}
 	if stream.readingFrame == nil {
 		stream.readingPos = 0
-		stream.readingFrame = <-stream.guard.ch
+		select {
+		case stream.readingFrame = <-stream.guard.ch:
+		case <-time.After(time.Minute * 10):
+			// 如果超过10分钟都无法读取到数据，则这个连接很可能要关掉了
+			// 这个超时时间不能太短，少于多数应用的心跳包将导致长连接应用频繁断线重连
+			stream.Close()
+			return 0, errors.New("read stream timeout")
+		}
 		if stream.readingFrame == nil {
 			return 0, errors.New("read from closed stream")
 		}

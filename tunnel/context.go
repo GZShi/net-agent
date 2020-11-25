@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	log "github.com/GZShi/net-agent/logger"
 )
@@ -181,13 +182,17 @@ func (ctx *context) response(dataType uint8, data []byte, err error) {
 }
 
 func (ctx *context) Flush() {
-	f := <-ctx.respChan
-	if f != nil {
-		wc := ctx.tunnel.NewWriteCloser()
-		_, err := f.WriteTo(wc)
-		wc.Close()
-		if err != nil {
-			log.Get().WithError(err).Error("write response failed")
+	select {
+	case f := <-ctx.respChan:
+		if f != nil {
+			wc := ctx.tunnel.NewWriteCloser()
+			_, err := f.WriteTo(wc)
+			wc.Close()
+			if err != nil {
+				log.Get().WithError(err).Error("write response failed")
+			}
 		}
+	case <-time.After(time.Second * 20):
+		log.Get().Error("wait response frame timeout")
 	}
 }

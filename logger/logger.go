@@ -39,9 +39,12 @@ func (f *errFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	if ok {
 		str := fmt.Sprint(val)
 		const errEstablishFailed = "A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+		const errUseClosedConn = ": use of closed network connection"
 		switch {
 		case strings.HasSuffix(str, errEstablishFailed):
 			entry.Data[logrus.ErrorKey] = "errEstablishFailed"
+		case strings.HasSuffix(str, errUseClosedConn):
+			entry.Data[logrus.ErrorKey] = "errUseClosedConn"
 		}
 	}
 

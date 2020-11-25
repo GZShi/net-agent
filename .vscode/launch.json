@@ -9,7 +9,7 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/tunnel/sample",
+      "program": "${workspaceFolder}/sample",
       "env": {},
       "args": ["-m", "s"]
     },
@@ -18,9 +18,9 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${workspaceFolder}/tunnel/sample",
+      "program": "${workspaceFolder}/sample",
       "env": {},
-      "args": ["-m", "c"]
+      "args": ["-m", "ac"]
     }
   ]
 }

@@ -3,6 +3,7 @@ package tunnel
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 )
 
 // request 发送一个RequestFrame，并等待对端返回一个ResponseFrame
@@ -21,6 +22,15 @@ func (t *tunnel) request(req *Frame) (*Frame, error) {
 	}
 
 	resp := <-guard.ch
+
+	// 判断应答包是正确应答还是错误应答
+	if resp == nil {
+		return nil, errors.New("empty response from remote")
+	}
+	if resp.Type == FrameResponseErr {
+		return nil, fmt.Errorf("rpc: %v", string(resp.Data))
+	}
+
 	return resp, nil
 }
 
