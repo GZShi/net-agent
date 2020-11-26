@@ -20,7 +20,7 @@ type Tunnel interface {
 // New 创建
 func New(conn net.Conn) Tunnel {
 	return &tunnel{
-		idSequece: 0,
+		idSequece: 1,
 		_conn:     conn,
 	}
 }
@@ -37,7 +37,8 @@ type tunnel struct {
 }
 
 type frameGuard struct {
-	ch chan *Frame
+	ch        chan *Frame
+	sessionID uint32
 }
 
 // NewID 生成不断自增的唯一ID

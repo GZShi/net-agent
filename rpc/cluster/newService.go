@@ -1,4 +1,4 @@
-package dial
+package cluster
 
 import (
 	"errors"
@@ -11,13 +11,17 @@ import (
 
 // NewService 创建rpc服务模块
 func NewService() tunnel.Service {
-	return &service{}
+	return &service{
+		route:   make(map[string]tunnel.OnRequestFunc),
+		cluster: exchanger.NewCluster(),
+		t:       nil,
+	}
 }
 
 type service struct {
 	route   map[string]tunnel.OnRequestFunc
-	t       tunnel.Tunnel
 	cluster exchanger.Cluster
+	t       tunnel.Tunnel
 }
 
 func (s *service) Hello(t tunnel.Tunnel) error {
@@ -35,20 +39,12 @@ func (s *service) Prefix() string {
 
 func (s *service) Exec(ctx tunnel.Context) error {
 	cmd := ctx.GetCmd()
-
 	switch cmd {
-	case nameOfDialDirect:
-		s.DialDirect(ctx)
-
-	case nameOfDialWithTunnelID:
-		s.DialWithTunnelID(ctx)
-
-	case nameOfDialWithTunnelLabel:
-		s.DialWithTunnelLabel(ctx)
-
-	default:
-		return fmt.Errorf("handler of '%v' not found", cmd)
+	case nameOfJoin:
+	case nameOfDetach:
+	case nameOfSetLabels:
+	case nameOfRemoveLabels:
 	}
 
-	return nil
+	return fmt.Errorf("handler of '%v' not found", cmd)
 }

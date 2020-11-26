@@ -4,16 +4,19 @@ import (
 	"net"
 	"time"
 
+	"github.com/GZShi/net-agent/exchanger"
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/tunnel"
 	"github.com/GZShi/net-agent/utils"
 	"github.com/sirupsen/logrus"
 )
 
-type dialReqeust struct {
-	Network   string `json:"network"`
-	Address   string `json:"address"`
-	SessionID uint32 `json:"sid"`
+type dialRequest struct {
+	Network     string        `json:"network"`
+	Address     string        `json:"address"`
+	SessionID   uint32        `json:"sid"`
+	TunnelID    exchanger.TID `json:"tid"`
+	TunnelLabel string        `json:"label"`
 }
 
 type dialResponse struct {
@@ -21,9 +24,9 @@ type dialResponse struct {
 }
 
 func (c *client) DialDirect(network, address string) (net.Conn, error) {
-	stream, sid := c.t.NewStream()
+	stream, sid := c.t.NewStream() // ready to read
 
-	var req dialReqeust
+	var req dialRequest
 	req.Network = network
 	req.Address = address
 	req.SessionID = sid
@@ -34,12 +37,13 @@ func (c *client) DialDirect(network, address string) (net.Conn, error) {
 		return nil, err
 	}
 
-	stream.Bind(resp.SessionID)
+	stream.Bind(resp.SessionID) // ready to write
+	stream.SetInfo(req.Address)
 	return stream, nil
 }
 
 func (s *service) DialDirect(ctx tunnel.Context) {
-	var req dialReqeust
+	var req dialRequest
 	var resp dialResponse
 	err := ctx.GetJSON(&req)
 	if err != nil {
@@ -58,9 +62,10 @@ func (s *service) DialDirect(ctx tunnel.Context) {
 	}
 
 	// create and bind stream
-	stream, sid := ctx.GetTunnel().NewStream()
+	stream, sid := ctx.GetTunnel().NewStream() // ready to read
 	resp.SessionID = sid
-	stream.Bind(req.SessionID)
+	stream.Bind(req.SessionID) // ready to write
+	stream.SetInfo(req.Address)
 
 	go func(start time.Time, address string) {
 		sent, received, err := utils.LinkReadWriteCloser(stream, conn)
@@ -72,7 +77,7 @@ func (s *service) DialDirect(ctx tunnel.Context) {
 		}).Debug("closed: ", address)
 	}(start, req.Address)
 
-	log.Get().WithField("duration", time.Now().Sub(start)).Info("dial sucess: ", req.Address)
+	log.Get().WithField("delay", time.Now().Sub(start)).Info("opened: ", req.Address)
 
 	ctx.JSON(&resp)
 }

@@ -5,15 +5,13 @@ import (
 	"sync"
 
 	"github.com/GZShi/net-agent/cipherconn"
-	"github.com/GZShi/net-agent/exchanger"
 	log "github.com/GZShi/net-agent/logger"
+	"github.com/GZShi/net-agent/rpc/cluster"
 	"github.com/GZShi/net-agent/rpc/dial"
 	"github.com/GZShi/net-agent/tunnel"
 )
 
 func listenAndServe(addr, password string) {
-	ts := exchanger.NewCluster()
-
 	listener, err := net.Listen("tcp4", addr)
 	if err != nil {
 		log.Get().WithError(err).Error("listen ", addr, " failed")
@@ -30,7 +28,7 @@ func listenAndServe(addr, password string) {
 		}
 		wg.Add(1)
 		go func(conn net.Conn) {
-			serve(ts, conn, password)
+			serve(conn, password)
 			wg.Done()
 		}(conn)
 	}
@@ -39,7 +37,7 @@ func listenAndServe(addr, password string) {
 	wg.Wait()
 }
 
-func serve(ts exchanger.Cluster, conn net.Conn, password string) {
+func serve(conn net.Conn, password string) {
 	defer conn.Close()
 	cc, err := cipherconn.New(conn, password)
 	if err != nil {
@@ -48,7 +46,14 @@ func serve(ts exchanger.Cluster, conn net.Conn, password string) {
 	}
 
 	t := tunnel.New(cc)
-	t.BindService(dial.NewService())
+	if err = t.BindService(dial.NewService()); err != nil {
+		log.Get().WithError(err).Error("bind service failed")
+		return
+	}
+	if err = t.BindService(cluster.NewService()); err != nil {
+		log.Get().WithError(err).Error("bind service failed")
+		return
+	}
 
 	log.Get().Info("tunnel created")
 	t.Run()

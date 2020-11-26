@@ -9,6 +9,7 @@ import (
 type Service interface {
 	Prefix() string
 	Exec(ctx Context) error
+	Hello(t Tunnel) error
 }
 
 func (t *tunnel) BindService(s Service) error {
@@ -26,5 +27,10 @@ func (t *tunnel) BindService(s Service) error {
 	}
 
 	t.serviceMap[prefix] = s
+	err := s.Hello(t)
+	if err != nil {
+		delete(t.serviceMap, prefix)
+		return err
+	}
 	return nil
 }

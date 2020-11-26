@@ -50,6 +50,12 @@ func makeRequester(remote dial.Client) socks5.Requester {
 		}
 		addr := req.GetAddrPortStr()
 
-		return remote.DialDirect("tcp4", addr)
+		// return remote.DialDirect("tcp4", addr)
+		conn, err := remote.DialWithTunnelID(globalTID, "tcp4", addr)
+		if err != nil {
+			log.Get().WithError(err).Error("dial failed")
+			return nil, err
+		}
+		return conn, nil
 	}
 }

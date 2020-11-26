@@ -3,7 +3,6 @@ package tunnel
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	log "github.com/GZShi/net-agent/logger"
 )
@@ -64,40 +63,21 @@ func (t *tunnel) onResponse(f *Frame) {
 // 接收到对端的一个数据传输包
 // 数据传输包专门用于进行原始二进制通信
 func (t *tunnel) onStreamData(f *Frame) {
-	var guard *frameGuard
-	// f.Data为nil，代表收到一个EOF信号
-	// 如果存在guard则通知guard，否则应该丢弃这个信号
-	if f.Data == nil {
-		val, loaded := t.streamGuards.Load(f.SessionID)
-		if loaded {
-			guard = val.(*frameGuard)
+	val, loaded := t.streamGuards.Load(f.SessionID)
+	if !loaded {
+		if f.Data == nil {
+			// f.Data为nil，代表收到对端的EOF信号，此时如果找不到guard，忽略丢弃即可
+			return
 		}
-	} else {
-		temp := &frameGuard{
-			ch: make(chan *Frame, 256),
-		}
-
-		val, loaded := t.streamGuards.LoadOrStore(f.SessionID, temp)
-		if loaded {
-			guard = val.(*frameGuard)
-		} else {
-			guard = temp
-		}
+		// 此时存在丢弃数据的风险
+		log.Get().Warn("guard not found: ", f.SessionID)
+		return
 	}
 
-	if guard != nil {
-		// 如果当前guard深度过长，则消费端可能出现了阻塞的情况
-		// 需要关闭连接，否则会阻塞其它Stream正常传输
-		if len(guard.ch) > 200 {
-			go func(sid uint32) {
-				log.Get().Warn("len(chan) > 200")
-				<-time.After(time.Second * 3)
-				if guard != nil && guard.ch != nil && len(guard.ch) > 200 {
-					t.streamGuards.Delete(sid)
-					log.Get().Error("stream guard deleted")
-				}
-			}(f.SessionID)
-		}
-		guard.ch <- f
+	if val == nil {
+		panic("stream is nil")
 	}
+
+	stream := val.(*streamRWC)
+	stream.Cache(f)
 }
