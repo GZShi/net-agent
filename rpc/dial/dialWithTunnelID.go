@@ -43,14 +43,14 @@ func (s *service) DialWithTunnelID(ctx tunnel.Context) {
 		return
 	}
 
-	t, err := s.cluster.FindTunnelByID(0)
+	t, err := s.cluster.FindTunnelByID(req.TunnelID)
 	if err != nil {
 		ctx.Error(err)
 		return
 	}
 
 	client := NewClient(t)
-	conn, err := client.DialDirect("tcp4", "")
+	conn, err := client.DialDirect(req.Network, req.Address)
 	if err != nil {
 		ctx.Error(err)
 		return

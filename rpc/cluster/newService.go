@@ -10,10 +10,10 @@ import (
 )
 
 // NewService 创建rpc服务模块
-func NewService() tunnel.Service {
+func NewService(cluster exchanger.Cluster) tunnel.Service {
 	return &service{
 		route:   make(map[string]tunnel.OnRequestFunc),
-		cluster: exchanger.NewCluster(),
+		cluster: cluster,
 		t:       nil,
 	}
 }
@@ -25,7 +25,7 @@ type service struct {
 }
 
 func (s *service) Hello(t tunnel.Tunnel) error {
-	if t != nil {
+	if t == nil {
 		return errors.New("tunnel is nil")
 	}
 	s.t = t
@@ -38,11 +38,19 @@ func (s *service) Prefix() string {
 }
 
 func (s *service) Exec(ctx tunnel.Context) error {
+	if s.cluster == nil {
+		return errors.New("cluster is nil")
+	}
+
 	cmd := ctx.GetCmd()
 	switch cmd {
 	case nameOfJoin:
+		s.Join(ctx)
+		return nil
 	case nameOfDetach:
 	case nameOfSetLabels:
+		s.SetLabels(ctx)
+		return nil
 	case nameOfRemoveLabels:
 	}
 

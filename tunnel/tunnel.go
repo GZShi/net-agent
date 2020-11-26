@@ -11,6 +11,7 @@ type Tunnel interface {
 	Run() error
 	Stop() error
 	BindService(s Service) error
+	Ready(func(t Tunnel))
 
 	NewStream() (Stream, uint32)
 	SendJSON(Context, string, interface{}, interface{}) error
@@ -34,6 +35,8 @@ type tunnel struct {
 	serviceMap   map[string]Service
 
 	writerLock sync.Mutex
+
+	readyFunc func(t Tunnel)
 }
 
 type frameGuard struct {
@@ -46,9 +49,18 @@ func (t *tunnel) NewID() uint32 {
 	return atomic.AddUint32(&t.idSequece, 1)
 }
 
+func (t *tunnel) Ready(fn func(Tunnel)) {
+	t.readyFunc = fn
+}
+
 // Run 执行读取程序，不断解析收到的数据包
 func (t *tunnel) Run() error {
-
+	if t.readyFunc != nil {
+		// todo:0
+		// 在tunnel.Run执行之前，如果进行rpc调用，有可能会无法接收到回包
+		// 需要排查，目前还未找到原因
+		go t.readyFunc(t)
+	}
 	var err error
 	for {
 		frame := &Frame{}

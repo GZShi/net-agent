@@ -34,6 +34,8 @@ type cluster struct {
 func NewCluster() Cluster {
 	return &cluster{
 		idSequence: 1,
+		ids:        make(map[TID]tunnel.Tunnel),
+		labelMap:   make(map[string]*tlist),
 	}
 }
 

@@ -10,8 +10,11 @@ import (
 )
 
 // NewService 创建rpc服务模块
-func NewService() tunnel.Service {
-	return &service{}
+func NewService(cluster exchanger.Cluster) tunnel.Service {
+	return &service{
+		route:   make(map[string]tunnel.OnRequestFunc),
+		cluster: cluster,
+	}
 }
 
 type service struct {
@@ -21,7 +24,7 @@ type service struct {
 }
 
 func (s *service) Hello(t tunnel.Tunnel) error {
-	if t != nil {
+	if t == nil {
 		return errors.New("tunnel is nil")
 	}
 	s.t = t

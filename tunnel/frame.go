@@ -84,6 +84,8 @@ func (f *Frame) WriteTo(w io.Writer) (int64, error) {
 		return written, err
 	}
 
+	// log.Get().Debug("written: ", f)
+
 	return written, nil
 }
 
@@ -121,6 +123,8 @@ func (f *Frame) ReadFrom(r io.Reader) (int64, error) {
 			f.Data = varBuf[headerSize:]
 		}
 	}
+
+	// log.Get().Debug("readed: ", f)
 
 	return readed, nil
 }

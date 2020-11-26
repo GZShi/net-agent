@@ -32,17 +32,19 @@ func connectAsAgent(addr, password string) {
 
 	t := tunnel.New(cc)
 
-	client := cluster.NewClient(t)
-	tid, err := client.Join()
-	if err != nil {
-		log.Get().WithError(err).Error("join cluster failed")
-		return
-	}
-	log.Get().Info("join cluster ok: ", tid)
-	globalTID = tid
+	t.Ready(func(t tunnel.Tunnel) {
+		client := cluster.NewClient(t)
+		tid, err := client.Join()
+		if err != nil {
+			log.Get().WithError(err).Error("join cluster failed")
+			return
+		}
+		log.Get().Info("join cluster ok: ", tid)
+		globalTID = tid
+	})
 
 	// agent 默认只支持直接创建连接
-	if err = t.BindService(dial.NewService()); err != nil {
+	if err = t.BindService(dial.NewService(nil)); err != nil {
 		log.Get().WithError(err).Error("bind service failed")
 		return
 	}

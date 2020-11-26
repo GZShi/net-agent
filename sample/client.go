@@ -28,12 +28,16 @@ func connectAsClient(addr, socks5Addr, password string) {
 	t := tunnel.New(cc)
 	remote := dial.NewClient(t)
 
+	var s socks5.Server
 	if socks5Addr != "" {
-		s := socks5.NewServer()
+		s = socks5.NewServer()
 		s.SetRequster(makeRequester(remote))
 		go func() {
 			s.ListenAndRun(socks5Addr)
 			log.Get().Info("socks5 server stopped")
+			if t != nil {
+				t.Stop()
+			}
 		}()
 		log.Get().Info("socks5 listen on ", socks5Addr)
 	}
@@ -41,6 +45,11 @@ func connectAsClient(addr, socks5Addr, password string) {
 	log.Get().Info("client created")
 	t.Run()
 	log.Get().Info("client closed")
+
+	// close socks server
+	if s != nil {
+		s.Stop()
+	}
 }
 
 func makeRequester(remote dial.Client) socks5.Requester {

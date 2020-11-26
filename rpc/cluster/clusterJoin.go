@@ -1,8 +1,6 @@
 package cluster
 
 import (
-	"errors"
-
 	"github.com/GZShi/net-agent/exchanger"
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/tunnel"
@@ -22,10 +20,6 @@ func (c *client) Join() (tid exchanger.TID, err error) {
 }
 
 func (s *service) Join(ctx tunnel.Context) {
-	if s.cluster == nil {
-		ctx.Error(errors.New("service is nil"))
-		return
-	}
 
 	tid, err := s.cluster.Join(ctx.GetTunnel())
 	if err != nil {

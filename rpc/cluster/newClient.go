@@ -9,7 +9,7 @@ import (
 type Client interface {
 	Join() (exchanger.TID, error)
 	// Detach()
-	// SetLabels(labels []string) error
+	SetLabels(labels []string) (finnalLabels []string, err error)
 	// RemoveLabels(labels []string) error
 }
 

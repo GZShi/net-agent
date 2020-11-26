@@ -18,11 +18,13 @@ type Server interface {
 	SetAuthChecker(AuthChecker)
 	ListenAndRun(string) error
 	Run(net.Listener) error
+	Stop() error
 }
 
 type server struct {
 	requester Requester
 	checker   AuthChecker
+	listener  net.Listener
 }
 
 // NewServer 创建新的socks5协议服务端
@@ -40,8 +42,13 @@ func (s *server) SetAuthChecker(in AuthChecker) {
 	s.checker = in
 }
 
+func (s *server) Stop() error {
+	return s.listener.Close()
+}
+
 // Run 将服务跑起来
 func (s *server) Run(listener net.Listener) error {
+	s.listener = listener
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
