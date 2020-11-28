@@ -5,7 +5,9 @@ import (
 
 	"github.com/GZShi/net-agent/cipherconn"
 	log "github.com/GZShi/net-agent/logger"
+	"github.com/GZShi/net-agent/rpc/cluster"
 	"github.com/GZShi/net-agent/rpc/dial"
+	dialGen "github.com/GZShi/net-agent/rpc/dial/gen"
 	"github.com/GZShi/net-agent/socks5"
 	"github.com/GZShi/net-agent/tunnel"
 )
@@ -26,12 +28,12 @@ func connectAsClient(addr, socks5Addr, password string) {
 	}
 
 	t := tunnel.New(cc)
-	remote := dial.NewClient(t)
+	client := dialGen.NewClient(t, nil)
 
 	var s socks5.Server
 	if socks5Addr != "" {
 		s = socks5.NewServer()
-		s.SetRequster(makeRequester(remote))
+		s.SetRequster(makeTunnelDialer(t, client))
 		go func() {
 			s.ListenAndRun(socks5Addr)
 			log.Get().Info("socks5 server stopped")
@@ -52,19 +54,27 @@ func connectAsClient(addr, socks5Addr, password string) {
 	}
 }
 
-func makeRequester(remote dial.Client) socks5.Requester {
+func makeTunnelDialer(t tunnel.Tunnel, remote dial.Dial) socks5.Requester {
 	return func(req socks5.Request) (net.Conn, error) {
 		if req.GetCommand() != socks5.ConnectCommand {
 			return nil, socks5.ErrCommandNotSupport
 		}
 		addr := req.GetAddrPortStr()
 
-		// return remote.DialDirect("tcp4", addr)
-		conn, err := remote.DialWithTunnelID(globalTID, "tcp4", addr)
+		stream, writeSID := t.NewStream()
+		readSID, err := remote.Dial(writeSID, "tcp4", addr)
 		if err != nil {
-			log.Get().WithError(err).Error("dial failed")
+			log.Get().WithError(err).Info("tunnel dialer failed")
 			return nil, err
 		}
-		return conn, nil
+		stream.Bind(readSID)
+
+		return stream, nil
+	}
+}
+
+func makeTunnelIDDialer(t tunnel.Tunnel, client cluster.Cluster) socks5.Requester {
+	return func(req socks5.Request) (net.Conn, error) {
+		return nil, nil
 	}
 }

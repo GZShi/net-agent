@@ -12,7 +12,7 @@ type Service interface {
 	Hello(t Tunnel) error
 }
 
-func (t *tunnel) BindService(s Service) error {
+func (t *tunnel) bindService(s Service) error {
 	if s == nil {
 		return errors.New("service is nil")
 	}
@@ -31,6 +31,15 @@ func (t *tunnel) BindService(s Service) error {
 	if err != nil {
 		delete(t.serviceMap, prefix)
 		return err
+	}
+	return nil
+}
+
+func (t *tunnel) BindServices(s ...Service) error {
+	for _, service := range s {
+		if err := t.bindService(service); err != nil {
+			return err
+		}
 	}
 	return nil
 }

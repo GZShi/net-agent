@@ -10,7 +10,7 @@ import (
 type Tunnel interface {
 	Run() error
 	Stop() error
-	BindService(s Service) error
+	BindServices(s ...Service) error
 	Ready(func(t Tunnel))
 
 	NewStream() (Stream, uint32)
