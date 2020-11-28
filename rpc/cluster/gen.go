@@ -1,13 +1,5 @@
 package cluster
 
-func (c *client) Login() error {
-	return c.t.SendJSON(c.ctx, "Login", nil, nil)
-}
-
-func (c *client) Logout() error {
-	return c.t.SendJSON(c.ctx, "Logout", nil, nil)
-}
-
 func (c *client) SetLabel(label string) error {
 	return c.t.SendJSON(c.ctx, "SetLabel", &struct {
 		Label string `json:"label"`

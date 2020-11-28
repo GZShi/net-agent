@@ -4,19 +4,54 @@ import (
 	"errors"
 
 	"github.com/GZShi/net-agent/rpc/cluster/def"
+	"github.com/GZShi/net-agent/rpc/dial"
+	"github.com/GZShi/net-agent/tunnel"
+	"github.com/GZShi/net-agent/utils"
 )
 
-var errNotImplement = errors.New("method not implement")
+var (
+	errNotImplement       = errors.New("method not implement")
+	errTunnelNotFoundByID = errors.New("tunnel not found by id")
+)
 
 // New 获取新的实例
-func New() def.Cluster {
-	return &impl{}
+func New(t tunnel.Tunnel) def.Cluster {
+	return &impl{
+		t:   t,
+		cls: getCluster(),
+	}
 }
 
-type impl struct{}
+type impl struct {
+	t   tunnel.Tunnel
+	cls *cluster
+}
 
-func (p *impl) Login() error {
-	return errNotImplement
+func (p *impl) Login() (def.TID, error) {
+	return p.cls.Join(p.t)
+}
+
+func (p *impl) DialByTID(tid def.TID, writeSID uint32, network, address string) (readSID uint32, err error) {
+	target, err := p.cls.FindTunnelByID(tid)
+	if err != nil {
+		return 0, err
+	}
+	dialer := dial.NewClient(target, nil)
+
+	// 第一个虚拟连接，用于访问目标站点
+	conn, wSID := target.NewStream()
+	rSID, err := dialer.Dial(wSID, network, address)
+	conn.Bind(rSID)
+	conn.SetInfo(address)
+
+	// 第二个虚拟连接，用于连接代理服务器
+	stream, sid := p.t.NewStream()
+	stream.Bind(writeSID)
+	stream.SetInfo(address)
+
+	go utils.LinkReadWriteCloser(stream, conn)
+
+	return sid, nil
 }
 
 func (p *impl) Logout() error {

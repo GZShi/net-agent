@@ -8,9 +8,14 @@ const (
 	nameOfRemoveLabels = "cluster/removeLabels"
 )
 
+// TID tunnel id
+type TID uint32
+
+// Cluster 集群管理
 type Cluster interface {
-	Login() error
+	Login() (TID, error)
 	Logout() error
+	DialByTID(tid TID, writeSID uint32, network, address string) (readSID uint32, err error)
 
 	SetLabel(label string) error
 

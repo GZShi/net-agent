@@ -27,7 +27,7 @@ func (c *client) SetPrefix(prefix string) {
 }
 
 //
-// New Service 创建rpc服务
+// NewService 创建rpc服务
 //
 func NewService() tunnel.Service {
 	service.New(nil)
@@ -40,7 +40,7 @@ type svc struct {
 	impl   def.Dial
 }
 
-func (s *svc) SetAlias(prefix string) {
+func (s *svc) SetPrefix(prefix string) {
 	s.prefix = prefix
 }
 
@@ -58,6 +58,7 @@ func (s *svc) Exec(ctx tunnel.Context) error {
 	switch ctx.GetMethod() {
 	case "Dial":
 		s.Dial(ctx)
+		return nil
 	}
 
 	return fmt.Errorf("route failed: '%v' not found in '%v'", ctx.GetMethod(), ctx.GetService())

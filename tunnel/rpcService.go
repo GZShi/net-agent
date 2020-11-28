@@ -8,7 +8,7 @@ import (
 // Service 服务模块接口
 type Service interface {
 	Prefix() string
-	SetAlias(prefix string)
+	SetPrefix(prefix string)
 	Hello(t Tunnel) error
 	Exec(ctx Context) error
 }

@@ -3,30 +3,31 @@ package main
 import (
 	"net"
 
-	"github.com/GZShi/net-agent/exchanger"
 	"github.com/GZShi/net-agent/rpc/cluster"
+	"github.com/GZShi/net-agent/rpc/cluster/def"
 	"github.com/GZShi/net-agent/rpc/dial"
 
 	"github.com/GZShi/net-agent/cipherconn"
-	log "github.com/GZShi/net-agent/logger"
+	logger "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/tunnel"
 )
 
-var globalTID = exchanger.InvalidTID
+var globalTID = def.TID(0)
 
 func connectAsAgent(addr, password string) {
+	log := logger.Get().WithField("mode", "agent")
 	conn, err := net.Dial("tcp4", addr)
 	if err != nil {
-		log.Get().WithError(err).Error("connect ", addr, " failed")
+		log.WithError(err).Error("connect ", addr, " failed")
 		return
 	}
 
 	defer conn.Close()
-	log.Get().Info("connect ", addr, " success")
+	log.Info("connect ", addr, " success")
 
 	cc, err := cipherconn.New(conn, password)
 	if err != nil {
-		log.Get().WithError(err).Error("create cipherconn failed")
+		log.WithError(err).Error("create cipherconn failed")
 		return
 	}
 
@@ -34,12 +35,13 @@ func connectAsAgent(addr, password string) {
 
 	t.Ready(func(t tunnel.Tunnel) {
 		client := cluster.NewClient(t, nil)
-		err := client.Login()
+		tid, err := client.Login()
 		if err != nil {
-			log.Get().WithError(err).Error("join cluster failed")
+			log.WithError(err).Error("join cluster failed")
 			return
 		}
-		log.Get().Info("login in success")
+		log.WithField("tid", tid).Info("login in success")
+		globalTID = tid
 	})
 
 	// agent 默认只支持直接创建连接
@@ -47,11 +49,11 @@ func connectAsAgent(addr, password string) {
 		dial.NewService(),
 	)
 	if err != nil {
-		log.Get().WithError(err).Error("bind service failed")
+		log.WithError(err).Error("bind service failed")
 		return
 	}
 
-	log.Get().Info("agent created")
+	log.Info("agent created")
 	t.Run()
-	log.Get().Info("agent closed")
+	log.Info("agent closed")
 }

@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/GZShi/net-agent/cipherconn"
-	"github.com/GZShi/net-agent/exchanger"
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/rpc/cluster"
 	"github.com/GZShi/net-agent/rpc/dial"
@@ -21,8 +20,6 @@ func listenAndServe(addr, password string) {
 
 	var wg sync.WaitGroup
 
-	cl := exchanger.NewCluster()
-
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -31,7 +28,7 @@ func listenAndServe(addr, password string) {
 		}
 		wg.Add(1)
 		go func(conn net.Conn) {
-			serve(cl, conn, password)
+			serve(conn, password)
 			wg.Done()
 		}(conn)
 	}
@@ -40,7 +37,7 @@ func listenAndServe(addr, password string) {
 	wg.Wait()
 }
 
-func serve(cl exchanger.Cluster, conn net.Conn, password string) {
+func serve(conn net.Conn, password string) {
 	defer conn.Close()
 	cc, err := cipherconn.New(conn, password)
 	if err != nil {

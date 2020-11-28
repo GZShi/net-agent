@@ -12,19 +12,20 @@ import (
 // NewClient 创建rpc客户端
 //
 func NewClient(t tunnel.Tunnel, ctx tunnel.Context) def.Cluster {
-	return &client{t, ctx}
+	return &client{t, ctx, "cluster"}
 }
 
 type client struct {
-	t   tunnel.Tunnel
-	ctx tunnel.Context
+	t      tunnel.Tunnel
+	ctx    tunnel.Context
+	prefix string
 }
 
 //
 // NewService 创建rpc服务
 //
 func NewService() tunnel.Service {
-	return &svc{"cluster", nil, service.New()}
+	return &svc{"cluster", nil, nil}
 }
 
 type svc struct {
@@ -33,7 +34,7 @@ type svc struct {
 	impl   def.Cluster
 }
 
-func (s *svc) SetAlias(prefix string) {
+func (s *svc) SetPrefix(prefix string) {
 	s.prefix = prefix
 }
 
@@ -43,9 +44,18 @@ func (s *svc) Prefix() string {
 
 func (s *svc) Hello(t tunnel.Tunnel) error {
 	s.t = t
+	s.impl = service.New(t)
 	return nil
 }
 
 func (s *svc) Exec(ctx tunnel.Context) error {
+	switch ctx.GetMethod() {
+	case "Login":
+		s.Login(ctx)
+		return nil
+	case "DialByTID":
+		s.DialByTID(ctx)
+		return nil
+	}
 	return fmt.Errorf("route failed: '%v' not found in '%v'", ctx.GetMethod(), ctx.GetService())
 }

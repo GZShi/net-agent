@@ -4,49 +4,50 @@ import (
 	"net"
 
 	"github.com/GZShi/net-agent/cipherconn"
-	log "github.com/GZShi/net-agent/logger"
-	clusterDef "github.com/GZShi/net-agent/rpc/cluster/def"
+	logger "github.com/GZShi/net-agent/logger"
+	"github.com/GZShi/net-agent/rpc/cluster"
 	"github.com/GZShi/net-agent/rpc/dial"
-	dialDef "github.com/GZShi/net-agent/rpc/dial/def"
 	"github.com/GZShi/net-agent/socks5"
 	"github.com/GZShi/net-agent/tunnel"
+	"github.com/sirupsen/logrus"
 )
 
 func connectAsClient(addr, socks5Addr, password string) {
+	log := logger.Get().WithField("mode", "client")
+
 	conn, err := net.Dial("tcp4", addr)
 	if err != nil {
-		log.Get().WithError(err).Error("connect ", addr, " failed")
+		log.WithError(err).Error("connect ", addr, " failed")
 		return
 	}
 	defer conn.Close()
-	log.Get().Info("connect ", addr, " success")
+	log.Info("connect ", addr, " success")
 
 	cc, err := cipherconn.New(conn, password)
 	if err != nil {
-		log.Get().WithError(err).Error("create cipherconn failed")
+		log.WithError(err).Error("create cipherconn failed")
 		return
 	}
 
 	t := tunnel.New(cc)
-	client := dial.NewClient(t, nil)
 
 	var s socks5.Server
 	if socks5Addr != "" {
 		s = socks5.NewServer()
-		s.SetRequster(makeTunnelDialer(t, client))
+		s.SetRequster(makeDialer(t, log))
 		go func() {
 			s.ListenAndRun(socks5Addr)
-			log.Get().Info("socks5 server stopped")
+			log.Info("socks5 server stopped")
 			if t != nil {
 				t.Stop()
 			}
 		}()
-		log.Get().Info("socks5 listen on ", socks5Addr)
+		log.Info("socks5 listen on ", socks5Addr)
 	}
 
-	log.Get().Info("client created")
+	log.Info("client created")
 	t.Run()
-	log.Get().Info("client closed")
+	log.Info("client closed")
 
 	// close socks server
 	if s != nil {
@@ -54,27 +55,32 @@ func connectAsClient(addr, socks5Addr, password string) {
 	}
 }
 
-func makeTunnelDialer(t tunnel.Tunnel, remote dialDef.Dial) socks5.Requester {
+func makeDialer(t tunnel.Tunnel, log *logrus.Entry) socks5.Requester {
+	dialClient := dial.NewClient(t, nil)
+	clsClient := cluster.NewClient(t, nil)
+
 	return func(req socks5.Request) (net.Conn, error) {
 		if req.GetCommand() != socks5.ConnectCommand {
 			return nil, socks5.ErrCommandNotSupport
 		}
 		addr := req.GetAddrPortStr()
 
+		useClsClient := (globalTID > 0)
+
 		stream, writeSID := t.NewStream()
-		readSID, err := remote.Dial(writeSID, "tcp4", addr)
+		var readSID uint32
+		var err error
+		if useClsClient {
+			readSID, err = clsClient.DialByTID(globalTID, writeSID, "tcp4", addr)
+		} else {
+			readSID, err = dialClient.Dial(writeSID, "tcp4", addr)
+		}
 		if err != nil {
-			log.Get().WithError(err).Info("tunnel dialer failed")
+			log.WithField("usecls", useClsClient).WithError(err).Info("tunnel dialer failed")
 			return nil, err
 		}
 		stream.Bind(readSID)
 
 		return stream, nil
-	}
-}
-
-func makeTunnelIDDialer(t tunnel.Tunnel, client clusterDef.Cluster) socks5.Requester {
-	return func(req socks5.Request) (net.Conn, error) {
-		return nil, nil
 	}
 }

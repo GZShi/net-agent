@@ -17,8 +17,13 @@ type stRespDial struct {
 }
 
 func (c *client) Dial(writeSID uint32, network, address string) (readSID uint32, err error) {
+
 	var resp stRespDial
-	err = c.t.SendJSON(c.ctx, "Dial", &stReqDial{writeSID, network, address}, &resp)
+	err = c.t.SendJSON(c.ctx,
+		tunnel.JoinServiceMethod(c.prefix, "Dial"),
+		&stReqDial{writeSID, network, address},
+		&resp,
+	)
 	if err != nil {
 		return 0, err
 	}
