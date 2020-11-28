@@ -8,8 +8,9 @@ import (
 // Service 服务模块接口
 type Service interface {
 	Prefix() string
-	Exec(ctx Context) error
+	SetAlias(prefix string)
 	Hello(t Tunnel) error
+	Exec(ctx Context) error
 }
 
 func (t *tunnel) bindService(s Service) error {

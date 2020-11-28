@@ -5,9 +5,9 @@ import (
 
 	"github.com/GZShi/net-agent/cipherconn"
 	log "github.com/GZShi/net-agent/logger"
-	"github.com/GZShi/net-agent/rpc/cluster"
+	clusterDef "github.com/GZShi/net-agent/rpc/cluster/def"
 	"github.com/GZShi/net-agent/rpc/dial"
-	dialGen "github.com/GZShi/net-agent/rpc/dial/gen"
+	dialDef "github.com/GZShi/net-agent/rpc/dial/def"
 	"github.com/GZShi/net-agent/socks5"
 	"github.com/GZShi/net-agent/tunnel"
 )
@@ -28,7 +28,7 @@ func connectAsClient(addr, socks5Addr, password string) {
 	}
 
 	t := tunnel.New(cc)
-	client := dialGen.NewClient(t, nil)
+	client := dial.NewClient(t, nil)
 
 	var s socks5.Server
 	if socks5Addr != "" {
@@ -54,7 +54,7 @@ func connectAsClient(addr, socks5Addr, password string) {
 	}
 }
 
-func makeTunnelDialer(t tunnel.Tunnel, remote dial.Dial) socks5.Requester {
+func makeTunnelDialer(t tunnel.Tunnel, remote dialDef.Dial) socks5.Requester {
 	return func(req socks5.Request) (net.Conn, error) {
 		if req.GetCommand() != socks5.ConnectCommand {
 			return nil, socks5.ErrCommandNotSupport
@@ -73,7 +73,7 @@ func makeTunnelDialer(t tunnel.Tunnel, remote dial.Dial) socks5.Requester {
 	}
 }
 
-func makeTunnelIDDialer(t tunnel.Tunnel, client cluster.Cluster) socks5.Requester {
+func makeTunnelIDDialer(t tunnel.Tunnel, client clusterDef.Cluster) socks5.Requester {
 	return func(req socks5.Request) (net.Conn, error) {
 		return nil, nil
 	}

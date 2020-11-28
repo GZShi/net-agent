@@ -7,8 +7,8 @@ import (
 	"github.com/GZShi/net-agent/cipherconn"
 	"github.com/GZShi/net-agent/exchanger"
 	log "github.com/GZShi/net-agent/logger"
-	clusterGen "github.com/GZShi/net-agent/rpc/cluster/gen"
-	dialGen "github.com/GZShi/net-agent/rpc/dial/gen"
+	"github.com/GZShi/net-agent/rpc/cluster"
+	"github.com/GZShi/net-agent/rpc/dial"
 	"github.com/GZShi/net-agent/tunnel"
 )
 
@@ -50,8 +50,8 @@ func serve(cl exchanger.Cluster, conn net.Conn, password string) {
 
 	t := tunnel.New(cc)
 	err = t.BindServices(
-		dialGen.NewService("dial"),
-		clusterGen.NewService("cluster"),
+		dial.NewService(),
+		cluster.NewService(),
 	)
 	if err != nil {
 		log.Get().WithError(err).Error("bind service failed")

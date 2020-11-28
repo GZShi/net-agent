@@ -193,12 +193,14 @@ func (stream *streamRWC) Close() error {
 	return nil
 }
 
-func (s *streamRWC) SetInfo(info string) {
-	s.info = info
+// SetInfo 设置连接信息，用于错误输出
+func (stream *streamRWC) SetInfo(info string) {
+	stream.info = info
 }
 
-func (s *streamRWC) Info() string {
-	return s.info
+// Info 获取信息
+func (stream *streamRWC) Info() string {
+	return stream.info
 }
 
 func (stream *streamRWC) Cache(f *Frame) {
