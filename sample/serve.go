@@ -39,6 +39,7 @@ func listenAndServe(addr, password string) {
 
 func serve(conn net.Conn, password string) {
 	defer conn.Close()
+
 	cc, err := cipherconn.New(conn, password)
 	if err != nil {
 		log.Get().WithError(err).Error("create cipherconn failed")

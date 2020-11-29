@@ -1,31 +1,10 @@
 # Net Agent
 
-## Framework
+## Todos
 
-## Install and Run
-```bash
-go get github.com/GZShi/net-agent/exec
-cd GOPATH/src/github.com/GZShi/net-agent/exec
-go build -o ../dist/netagent
-cd ../dist
-./netagent -config "./config.json"
-```
-
-### config example
-```json
-// client mode
-{
-  "mode": "client",
-  "addr": "localhost:1080",
-  "privateKey": "secretsecret",
-  "clientName": "localuser",
-  "channelName": "remotework"
-}
-
-// server mode
-{
-  "mode": "server",
-  "addr": "0.0.0.0:1080",
-  "privateKey": "secretsecret"
-}
-```
+* 基础Client/Agent
+* 基础黑白名单
+* 高性能数据埋点服务
+* 带权限的代理服务
+* 端口开放权限控制
+* 可视化界面
