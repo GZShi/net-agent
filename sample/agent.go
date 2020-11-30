@@ -34,6 +34,8 @@ func connectAsAgent(addr, password string) {
 	t := tunnel.New(cc)
 
 	t.Ready(func(t tunnel.Tunnel) {
+		go enableSocks5Server(t)
+
 		client := cluster.NewClient(t, nil)
 		tid, err := client.Login()
 		if err != nil {

@@ -7,7 +7,7 @@ import (
 	"github.com/GZShi/net-agent/cipherconn"
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/rpc/cluster"
-	"github.com/GZShi/net-agent/rpc/dial"
+	"github.com/GZShi/net-agent/socks5"
 	"github.com/GZShi/net-agent/tunnel"
 )
 
@@ -47,16 +47,27 @@ func serve(conn net.Conn, password string) {
 	}
 
 	t := tunnel.New(cc)
-	err = t.BindServices(
-		dial.NewService(),
-		cluster.NewService(),
-	)
+	err = t.BindServices(cluster.NewService())
 	if err != nil {
 		log.Get().WithError(err).Error("bind service failed")
 		return
 	}
 
+	go enableSocks5Server(t)
+
 	log.Get().Info("tunnel created")
 	t.Run()
 	log.Get().Info("tunnel closed")
+}
+
+func enableSocks5Server(t tunnel.Tunnel) {
+	l, err := t.Listen(1080)
+	if err != nil {
+		log.Get().WithError(err).Error(err)
+		return
+	}
+
+	ss := socks5.NewServer()
+	ss.SetRequster(socks5.DefaultRequester)
+	ss.Run(l)
 }

@@ -34,7 +34,7 @@ func connectAsClient(addr, socks5Addr, password string) {
 	var s socks5.Server
 	if socks5Addr != "" {
 		s = socks5.NewServer()
-		s.SetRequster(makeDialer(t, log))
+		s.SetRequster(makeDialer2(t, log))
 		go func() {
 			s.ListenAndRun(socks5Addr)
 			log.Info("socks5 server stopped")
@@ -82,5 +82,22 @@ func makeDialer(t tunnel.Tunnel, log *logrus.Entry) socks5.Requester {
 		stream.Bind(readSID)
 
 		return stream, nil
+	}
+}
+
+func makeDialer2(t tunnel.Tunnel, log *logrus.Entry) socks5.Requester {
+	return func(req socks5.Request) (net.Conn, error) {
+		if req.GetCommand() != socks5.ConnectCommand {
+			return nil, socks5.ErrCommandNotSupport
+		}
+		addr := req.GetAddrPortStr()
+
+		conn, err := t.Dial(1080)
+		if err != nil {
+			log.WithError(err).Info("tunnel dialer failed")
+			return nil, err
+		}
+
+		return socks5.Upgrade(conn, addr, nil)
 	}
 }
