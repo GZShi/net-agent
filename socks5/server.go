@@ -106,9 +106,16 @@ func (s *server) serve(conn net.Conn) error {
 	if err != nil {
 		return err
 	}
-	_, err = conn.Write([]byte{dataVersion, repSuccess,
-		0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	})
+
+	// 根据RFC1928，request与reply有相似结构
+	var reply request
+	reply.version = dataVersion
+	reply.command = 0 // success
+	reply.addressType = IPv4
+	reply.addressBuf = make([]byte, net.IPv4len)
+	reply.port = 0
+
+	_, err = reply.WriteTo(conn)
 	if err != nil {
 		return err
 	}

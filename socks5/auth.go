@@ -12,30 +12,43 @@ var (
 
 // Auth 认证接口
 type Auth interface {
-	Start() io.WriterTo
-	Next(fromServer []byte) (io.WriterTo, error)
+	Start() (wt io.WriterTo, hasNext bool, err error)
+	Next(r io.Reader) (wt io.WriterTo, hasNext bool, err error)
 }
 
 // NoAuth 直接连接的方式
 func NoAuth() Auth {
-	return &noAuth{}
+	return &noAuth{
+		round: 0,
+	}
 }
 
-type noAuth struct{}
+type noAuth struct {
+	round int
+}
 
-func (auth *noAuth) Start() io.WriterTo {
+func (auth *noAuth) Start() (io.WriterTo, bool, error) {
 	return &handshakeData{
 		version: VersionSocks5,
 		methods: []byte{MethodNoAuth},
-	}
+	}, true, nil
 }
 
-func (auth *noAuth) Next(fromServer []byte) (io.WriterTo, error) {
-	if fromServer[1] != MethodNoAuth {
-		return nil, ErrMethodsNotSupport
+func (auth *noAuth) Next(reader io.Reader) (io.WriterTo, bool, error) {
+	if auth.round != 0 {
+		return nil, false, errors.New("unexpected round")
 	}
+	auth.round++
 
-	return nil, nil
+	buf := make([]byte, 2)
+	_, err := io.ReadFull(reader, buf)
+	if err != nil {
+		return nil, false, err
+	}
+	if buf[0] != dataVersion || buf[1] != MethodNoAuth {
+		return nil, false, errors.New("bad handshake response")
+	}
+	return nil, false, nil
 }
 
 // AuthPswd 基础的用户名密码校验
@@ -49,25 +62,37 @@ type authPswd struct {
 	round    int
 }
 
-func (auth *authPswd) Start() io.WriterTo {
+func (auth *authPswd) Start() (io.WriterTo, bool, error) {
 	return &handshakeData{
 		version: VersionSocks5,
 		methods: []byte{MethodAuthPswd},
-	}
+	}, true, nil
 }
-func (auth *authPswd) Next(fromServer []byte) (io.WriterTo, error) {
+
+func (auth *authPswd) Next(reader io.Reader) (io.WriterTo, bool, error) {
+	var buf []byte
 	r := auth.round
 	auth.round++
 	switch r {
 	case 0:
-		return auth, nil
-	case 1:
-		if fromServer[0] != 0x01 || fromServer[1] != 0x00 {
-			return nil, ErrAuthPswdFailed
+		buf = make([]byte, 2)
+		_, err := io.ReadFull(reader, buf)
+		if err != nil {
+			return nil, false, err
 		}
-		return nil, nil
+		return auth, true, nil
+	case 1:
+		buf = make([]byte, 2)
+		_, err := io.ReadFull(reader, buf)
+		if err != nil {
+			return nil, false, err
+		}
+		if buf[0] != 0x01 || buf[1] != 0x00 {
+			return nil, false, ErrAuthPswdFailed
+		}
+		return nil, false, nil
 	default:
-		return nil, errors.New("unexpected round")
+		return nil, false, errors.New("unexpected round")
 	}
 }
 

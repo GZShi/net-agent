@@ -135,7 +135,7 @@ func (req *request) WriteTo(w io.Writer) (written int64, err error) {
 	case IPv6:
 		portPos = 4 + net.IPv6len
 	case Domain:
-		portPos = 4 + uint8(len(req.addressBuf))
+		portPos = 4 + 1 + uint8(len(req.addressBuf))
 	default:
 		return 0, ErrAddressTypeNotSupport
 	}
@@ -145,7 +145,8 @@ func (req *request) WriteTo(w io.Writer) (written int64, err error) {
 	buf[0] = req.version
 	buf[1] = req.command
 	buf[3] = req.addressType
-	copy(buf[4:portPos], req.addressBuf)
+	buf[4] = byte(len(req.addressBuf))
+	copy(buf[5:portPos], req.addressBuf)
 	binary.BigEndian.PutUint16(buf[portPos:portPos+2], req.port)
 
 	wn, err := w.Write(buf)
