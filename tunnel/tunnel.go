@@ -36,7 +36,8 @@ type tunnel struct {
 
 	writerLock sync.Mutex
 
-	readyFunc func(t Tunnel)
+	readyFunc    func(t Tunnel)
+	acceptGuards sync.Map
 }
 
 type frameGuard struct {

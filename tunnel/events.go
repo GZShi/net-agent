@@ -69,6 +69,9 @@ func (t *tunnel) onStreamData(f *Frame) {
 			// f.Data为nil，代表收到对端的EOF信号，此时如果找不到guard，忽略丢弃即可
 			return
 		}
+
+		// 此时很可能是一个Dial请求
+
 		// 此时存在丢弃数据的风险
 		log.Get().Warn("guard not found: ", f.SessionID)
 		return
