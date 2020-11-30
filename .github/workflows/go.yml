@@ -30,7 +30,7 @@ jobs:
         fi
 
     - name: Build
-      run: go build -v ./sample -o ./dist/sample.bin
+      run: go build -o ./dist/sample.bin -v ./sample
 
     - name: Test
       run: go test -timeout 60s -v ./...
