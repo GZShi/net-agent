@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"time"
@@ -55,6 +56,14 @@ func (t *tunnel) NewStream() (Stream, uint32) {
 		panic("unexpceted stream stored")
 	}
 	return stream, sid
+}
+
+func (t *tunnel) FindStreamBySID(sid uint32) (Stream, error) {
+	val, loaded := t.streamGuards.Load(sid)
+	if !loaded {
+		return nil, fmt.Errorf("stream not found, sid=%v", sid)
+	}
+	return val.(Stream), nil
 }
 
 func (stream *streamRWC) Bind(sessionID uint32) error {
@@ -193,12 +202,14 @@ func (stream *streamRWC) Close() error {
 	return nil
 }
 
-func (s *streamRWC) SetInfo(info string) {
-	s.info = info
+// SetInfo 设置连接信息，用于错误输出
+func (stream *streamRWC) SetInfo(info string) {
+	stream.info = info
 }
 
-func (s *streamRWC) Info() string {
-	return s.info
+// Info 获取信息
+func (stream *streamRWC) Info() string {
+	return stream.info
 }
 
 func (stream *streamRWC) Cache(f *Frame) {

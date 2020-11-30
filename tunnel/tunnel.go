@@ -14,6 +14,7 @@ type Tunnel interface {
 	Ready(func(t Tunnel))
 
 	NewStream() (Stream, uint32)
+	FindStreamBySID(uint32) (Stream, error)
 	SendJSON(Context, string, interface{}, interface{}) error
 	SendText(Context, string, string) (string, error)
 }

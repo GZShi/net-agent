@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,13 +17,17 @@ type Context interface {
 	GetTunnel() Tunnel
 	GetCallStackStr(Caller) (string, error)
 
-	// for request
-	GetCmd() string
+	// for route
+	GetCmd() string     // service.method
+	GetService() string // service
+	GetMethod() string  // method
+
+	// for request data
 	GetData() []byte
 	GetJSON(v interface{}) error
 	GetText() (string, error)
 
-	// for response
+	// for response data
 	JSON(v interface{})
 	Text(string)
 	Data([]byte)
@@ -38,21 +43,30 @@ type OnRequestFunc func(Context)
 //
 
 type context struct {
-	tunnel     *tunnel
-	req        *Frame
-	header     map[string]string
-	caller     []Caller
-	resp       *Frame
-	respChan   chan *Frame
-	respLock   sync.Mutex
-	respClosed bool
-	onceParse  sync.Once
+	tunnel      *tunnel
+	req         *Frame
+	header      map[string]string
+	command     string
+	serviceName string
+	methodName  string
+	caller      []Caller
+	resp        *Frame
+	respChan    chan *Frame
+	respLock    sync.Mutex
+	respClosed  bool
+	onceParse   sync.Once
 }
 
 // header keys
 const (
-	cmdKey = "cmd"
+	cmdKey     = "cmd"
+	cmdSepByte = '/'
 )
+
+// JoinServiceMethod 拼接service和method
+func JoinServiceMethod(service, method string) string {
+	return service + string(cmdSepByte) + method
+}
 
 func (t *tunnel) newContext(req *Frame) Context {
 	ctx := &context{
@@ -79,6 +93,18 @@ func (ctx *context) parse() {
 		if ctx.req.Header != nil {
 			ctx.header, _ = ctx.req.ReadHeader()
 		}
+		cmd, found := ctx.header[cmdKey]
+		if found {
+			ctx.command = cmd
+			pos := strings.IndexByte(cmd, cmdSepByte)
+			if pos < 0 {
+				ctx.serviceName = cmd
+				ctx.methodName = ""
+			} else {
+				ctx.serviceName = cmd[0:pos]
+				ctx.methodName = cmd[pos+1:]
+			}
+		}
 	})
 }
 
@@ -96,14 +122,17 @@ func (ctx *context) GetCallStackStr(newCall Caller) (string, error) {
 
 func (ctx *context) GetCmd() string {
 	ctx.parse()
-	if ctx.header == nil {
-		return ""
-	}
-	cmd, found := ctx.header[cmdKey]
-	if found {
-		return cmd
-	}
-	return ""
+	return ctx.command
+}
+
+func (ctx *context) GetService() string {
+	ctx.parse()
+	return ctx.serviceName
+}
+
+func (ctx *context) GetMethod() string {
+	ctx.parse()
+	return ctx.methodName
 }
 
 func (ctx *context) GetData() []byte {
