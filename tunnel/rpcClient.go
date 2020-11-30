@@ -8,20 +8,26 @@ import (
 
 // request 发送一个RequestFrame，并等待对端返回一个ResponseFrame
 func (t *tunnel) request(req *Frame) (*Frame, error) {
-	guard := &frameGuard{
-		ch: make(chan *Frame),
+	guard := make(chan *Frame)
+	_, loaded := t.respGuards.LoadOrStore(req.ID, guard)
+	if loaded {
+		return nil, errors.New("dump req.id")
 	}
-	t.respGuards.Store(req.ID, guard)
+
+	// 这个请求完毕后，就应该删除对应的guard
+	defer func() {
+		t.respGuards.Delete(req.ID)
+		close(guard)
+	}()
 
 	w := t.NewWriteCloser()
 	_, err := req.WriteTo(w)
 	w.Close()
 	if err != nil {
-		t.respGuards.Delete(req.ID)
 		return nil, err
 	}
 
-	resp := <-guard.ch
+	resp := <-guard
 
 	// 判断应答包是正确应答还是错误应答
 	if resp == nil {
@@ -36,14 +42,10 @@ func (t *tunnel) request(req *Frame) (*Frame, error) {
 
 // ctxChunk 发起当前rpc.call时，所处的Context环境
 func (t *tunnel) call(ctxChunk Context, cmd string, dataType uint8, data []byte) ([]byte, error) {
-	req := &Frame{
-		ID:        t.NewID(),
-		Type:      FrameRequest,
-		SessionID: 0,
-		Header:    nil,
-		DataType:  dataType,
-		Data:      data,
-	}
+	req := t.NewFrame(FrameRequest)
+	req.DataType = dataType
+	req.Data = data
+
 	stack := ""
 	var err error
 

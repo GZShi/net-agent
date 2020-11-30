@@ -69,19 +69,16 @@ func JoinServiceMethod(service, method string) string {
 }
 
 func (t *tunnel) newContext(req *Frame) Context {
+	resp := t.NewFrame(FrameResponseErr)
+	resp.SessionID = req.ID
+	resp.DataType = TextData
+
 	ctx := &context{
-		tunnel: t,
-		req:    req,
-		header: nil,
-		caller: nil,
-		resp: &Frame{
-			ID:        t.NewID(),
-			Type:      FrameResponseErr,
-			SessionID: req.ID,
-			Header:    nil,
-			DataType:  TextData,
-			Data:      nil,
-		},
+		tunnel:     t,
+		req:        req,
+		header:     nil,
+		caller:     nil,
+		resp:       resp,
 		respChan:   make(chan *Frame, 1),
 		respClosed: false,
 	}

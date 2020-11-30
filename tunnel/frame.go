@@ -6,6 +6,10 @@ import (
 	"io"
 )
 
+func (t *tunnel) NewFrame(typ uint8) *Frame {
+	return &Frame{ID: t.NewID(), Type: typ, DataType: BinaryData}
+}
+
 // Frame 数据传输的最小单位
 type Frame struct {
 	ID        uint32
@@ -31,6 +35,10 @@ const (
 	// FrameResponse 应答帧
 	FrameResponseOK
 	FrameResponseErr
+
+	// FrameDialRequest 创建连接的请求
+	FrameDialRequest
+	FrameDialResponse
 )
 
 // Frame.DataType 字典

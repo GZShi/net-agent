@@ -17,6 +17,10 @@ type Tunnel interface {
 	FindStreamBySID(uint32) (Stream, error)
 	SendJSON(Context, string, interface{}, interface{}) error
 	SendText(Context, string, string) (string, error)
+
+	// net interface
+	Listen(virtualPort uint32) (net.Listener, error)
+	Dial(virtualPort uint32) (net.Conn, error)
 }
 
 // New 创建
@@ -32,6 +36,7 @@ type tunnel struct {
 	idSequece    uint32
 	_conn        net.Conn
 	respGuards   sync.Map
+	dialGuards   sync.Map
 	streamGuards sync.Map
 	serviceMap   map[string]Service
 
@@ -77,6 +82,10 @@ func (t *tunnel) Run() error {
 			go t.onResponse(frame)
 		case FrameStreamData:
 			t.onStreamData(frame)
+		case FrameDialRequest:
+			go t.onDial(frame)
+		case FrameDialResponse:
+			go t.onDialResponse(frame)
 		}
 	}
 }

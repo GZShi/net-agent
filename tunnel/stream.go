@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	log "github.com/GZShi/net-agent/logger"
@@ -36,6 +37,7 @@ type streamRWC struct {
 	closed         bool
 	info           string
 	isStayAlert    bool
+	closeOnce      sync.Once
 }
 
 // NewStream 根据指定Session创建流式数据通道
@@ -156,14 +158,9 @@ func (stream *streamRWC) Write(buf []byte) (int, error) {
 	if stream.writeSessionID == 0 {
 		return 0, errors.New("write session id is 0")
 	}
-	frame := &Frame{
-		ID:        stream.t.NewID(),
-		Type:      FrameStreamData,
-		SessionID: stream.writeSessionID,
-		Header:    nil,
-		DataType:  BinaryData,
-		Data:      buf,
-	}
+	frame := stream.t.NewFrame(FrameStreamData)
+	frame.SessionID = stream.writeSessionID
+	frame.Data = buf
 
 	wc := stream.t.NewWriteCloser()
 	wn, err := frame.WriteTo(wc)
@@ -178,26 +175,38 @@ func (stream *streamRWC) Write(buf []byte) (int, error) {
 }
 
 func (stream *streamRWC) Close() error {
+	stream.closeOnce.Do(func() {
+		stream.close()
+	})
+	return nil
+}
+
+func (stream *streamRWC) close() error {
 	if stream.closed {
 		return errors.New("stream closed")
 	}
 	stream.closed = true
 
 	// 向对端发送一个EOF，可能成功也可能失败
-	frame := &Frame{
-		ID:        stream.t.NewID(),
-		Type:      FrameStreamData,
-		SessionID: stream.writeSessionID,
-		Header:    nil,
-		DataType:  BinaryData,
-		Data:      nil,
-	}
+	frame := stream.t.NewFrame(FrameStreamData)
+	frame.SessionID = stream.writeSessionID
+
 	wc := stream.t.NewWriteCloser()
 	frame.WriteTo(wc)
 	wc.Close()
 
 	// 清除guard，停止接收数据
 	stream.t.streamGuards.Delete(stream.readSessionID)
+	stream.t = nil
+
+	// 清空channels
+	for len(stream.readCh) > 0 {
+		<-stream.readCh
+	}
+	close(stream.readCh)
+	stream.readCh = nil
+
+	stream.readingFrame = nil
 
 	return nil
 }

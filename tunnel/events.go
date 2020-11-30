@@ -48,15 +48,11 @@ func (t *tunnel) onResponse(f *Frame) {
 	val, has := t.respGuards.Load(f.SessionID)
 	if !has {
 		// 丢弃不用
-		log.Get().WithField("sessionID", f.SessionID).Error("can't find responseGuard")
+		log.Get().WithField("sessionID", f.SessionID).Warn("response guard not found")
 		return
 	}
-	// Todo:5 go1.15中提供了LoadAndDelete方法
-	t.respGuards.Delete(f.SessionID)
-
-	guard := val.(*frameGuard)
-	guard.ch <- f
-	close(guard.ch)
+	guard := val.(chan *Frame)
+	guard <- f
 }
 
 // onSteramData 基础事件
@@ -70,10 +66,12 @@ func (t *tunnel) onStreamData(f *Frame) {
 			return
 		}
 
-		// 此时很可能是一个Dial请求
-
 		// 此时存在丢弃数据的风险
-		log.Get().Warn("guard not found: ", f.SessionID)
+		datalen := 0
+		if f.Data != nil {
+			datalen = len(f.Data)
+		}
+		log.Get().Warn("stream guard not found: id=", f.SessionID, " datalen=", datalen)
 		return
 	}
 
