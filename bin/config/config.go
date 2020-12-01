@@ -10,7 +10,7 @@ type TunnelInfo struct {
 // ServiceInfo 服务信息
 type ServiceInfo struct {
 	Enable bool              `json:"enable"`
-	Desc   bool              `json:"description"`
+	Desc   string            `json:"description"`
 	Type   string            `json:"type"`
 	Param  map[string]string `json:"param"`
 }

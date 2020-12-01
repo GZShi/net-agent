@@ -37,7 +37,7 @@ func connectAsAgent(addr, password string) {
 		go enableSocks5Server(t)
 
 		client := cluster.NewClient(t, nil)
-		tid, err := client.Login()
+		tid, err := client.Login("test.tunnel")
 		if err != nil {
 			log.WithError(err).Error("join cluster failed")
 			return

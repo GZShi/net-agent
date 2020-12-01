@@ -28,8 +28,8 @@ type impl struct {
 	cls *cluster
 }
 
-func (p *impl) Login() (def.TID, error) {
-	return p.cls.Join(p.t)
+func (p *impl) Login(vhost string) (def.TID, error) {
+	return p.cls.Join(p.t, vhost)
 }
 
 func (p *impl) DialByTID(tid def.TID, writeSID uint32, network, address string) (readSID uint32, err error) {
@@ -56,7 +56,11 @@ func (p *impl) DialByTID(tid def.TID, writeSID uint32, network, address string) 
 }
 
 func (p *impl) Dial(vhost string, vport uint32) (net.Conn, error) {
-	target, err := p.cls.FindTunnelByID(0)
+	tid, err := p.cls.Lookup(vhost)
+	if err != nil {
+		return nil, err
+	}
+	target, err := p.cls.FindTunnelByID(tid)
 	if err != nil {
 		return nil, err
 	}

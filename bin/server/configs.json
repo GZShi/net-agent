@@ -1,0 +1,8 @@
+{
+  "tunnel": {
+    "address": "localhost:2035",
+    "password": ""
+  },
+
+  "services": []
+}

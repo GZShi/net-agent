@@ -1,0 +1,19 @@
+{
+  "tunnel": {
+    "address": "localhost:2035",
+    "password": "",
+    "vhost": "test"
+  },
+
+  "services": [{
+    "enable": true,
+    "description": "将本地网络用socks5方式暴露在vip.tunnel:1081上",
+    "type": "socks5",
+    "param": {
+      "listen": "vip.tunnel:1081",
+      "username": "",
+      "password": "",
+      "connect": "direct"
+    }
+  }]
+}

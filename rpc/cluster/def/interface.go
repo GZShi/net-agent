@@ -15,7 +15,7 @@ type TID uint32
 
 // Cluster 集群管理
 type Cluster interface {
-	Login() (TID, error)
+	Login(vhost string) (TID, error)
 	Logout() error
 	DialByTID(tid TID, writeSID uint32, network, address string) (readSID uint32, err error)
 	Dial(vhost string, vport uint32) (net.Conn, error)

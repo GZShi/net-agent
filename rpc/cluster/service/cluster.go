@@ -14,6 +14,8 @@ import (
 type cluster struct {
 	ids map[def.TID]tunnel.Tunnel
 
+	vhostMap map[string]def.TID
+
 	labelMap map[string]*tlist
 
 	mut        sync.RWMutex
@@ -36,6 +38,7 @@ func newCluster() *cluster {
 	return &cluster{
 		idSequence: 1,
 		ids:        make(map[def.TID]tunnel.Tunnel),
+		vhostMap:   make(map[string]def.TID),
 		labelMap:   make(map[string]*tlist),
 	}
 }
@@ -44,14 +47,34 @@ func (ts *cluster) NextTID() def.TID {
 	return def.TID(atomic.AddUint32(&ts.idSequence, 1))
 }
 
-func (ts *cluster) Join(t tunnel.Tunnel) (def.TID, error) {
+func (ts *cluster) lookup(vhost string) (def.TID, error) {
+	tid, found := ts.vhostMap[vhost]
+	if !found {
+		return 0, errors.New("vhost record not found")
+	}
+	return tid, nil
+}
+
+func (ts *cluster) Lookup(vhost string) (def.TID, error) {
+	ts.mut.Lock()
+	defer ts.mut.Unlock()
+	return ts.lookup(vhost)
+}
+
+func (ts *cluster) Join(t tunnel.Tunnel, vhost string) (def.TID, error) {
 	ts.mut.Lock()
 	defer ts.mut.Unlock()
 
-	id := ts.NextTID()
-	ts.ids[id] = t
+	_, err := ts.lookup(vhost)
+	if err == nil {
+		return 0, errors.New("vhost exists")
+	}
 
-	return id, nil
+	tid := ts.NextTID()
+	ts.ids[tid] = t
+	ts.vhostMap[vhost] = tid
+
+	return tid, nil
 }
 
 func (ts *cluster) Detach(tid def.TID) {

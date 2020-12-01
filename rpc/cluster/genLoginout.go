@@ -5,13 +5,17 @@ import (
 	"github.com/GZShi/net-agent/tunnel"
 )
 
+type stReqLogin struct {
+	Vhost string `json:"vhost"`
+}
 type stRespLogin struct {
 	TID def.TID `json:"tid"`
 }
 
-func (c *client) Login() (def.TID, error) {
+func (c *client) Login(vhost string) (def.TID, error) {
 	var resp stRespLogin
-	err := c.t.SendJSON(c.ctx, tunnel.JoinServiceMethod(c.prefix, "Login"), nil, &resp)
+	err := c.t.SendJSON(c.ctx, tunnel.JoinServiceMethod(c.prefix, "Login"),
+		&stReqLogin{vhost}, &resp)
 	if err != nil {
 		return 0, err
 	}
@@ -19,7 +23,13 @@ func (c *client) Login() (def.TID, error) {
 }
 
 func (s *svc) Login(ctx tunnel.Context) {
-	tid, err := s.impl.Login()
+	var req stReqLogin
+	err := ctx.GetJSON(&req)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	tid, err := s.impl.Login(req.Vhost)
 	if err != nil {
 		ctx.Error(err)
 		return

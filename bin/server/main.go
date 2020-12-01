@@ -28,6 +28,7 @@ func main() {
 		return
 	}
 
+	log.Get().Info("server running on ", cfg.Tunnel.Address)
 	for {
 		conn, err := l.Accept()
 		if err != nil {
@@ -56,12 +57,6 @@ func serve(conn net.Conn, cfg *config.Config) {
 	t := tunnel.New(cc)
 
 	t.BindServices(cluster.NewService())
-
-	t.Ready(func(t tunnel.Tunnel) {
-		for _, svc := range cfg.Services {
-			go runService(t, svc)
-		}
-	})
 
 	t.Run()
 }
