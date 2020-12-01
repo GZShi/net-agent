@@ -1,5 +1,7 @@
 package def
 
+import "net"
+
 const (
 	namePrefix         = "cluster"
 	nameOfJoin         = "cluster/join"
@@ -16,6 +18,7 @@ type Cluster interface {
 	Login() (TID, error)
 	Logout() error
 	DialByTID(tid TID, writeSID uint32, network, address string) (readSID uint32, err error)
+	Dial(vhost string, vport uint32) (net.Conn, error)
 
 	SetLabel(label string) error
 

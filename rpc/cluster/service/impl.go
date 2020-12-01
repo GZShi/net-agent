@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"net"
 
 	"github.com/GZShi/net-agent/rpc/cluster/def"
 	"github.com/GZShi/net-agent/rpc/dial"
@@ -52,6 +53,14 @@ func (p *impl) DialByTID(tid def.TID, writeSID uint32, network, address string) 
 	go utils.LinkReadWriteCloser(stream, conn)
 
 	return sid, nil
+}
+
+func (p *impl) Dial(vhost string, vport uint32) (net.Conn, error) {
+	target, err := p.cls.FindTunnelByID(0)
+	if err != nil {
+		return nil, err
+	}
+	return target.Dial(vport)
 }
 
 func (p *impl) Logout() error {
