@@ -52,7 +52,7 @@ func (ts *cluster) Lookup(vhost string) (def.TID, error) {
 	}
 	val, found := ts.vhosts.Load(vhost[:len(vhost)-7])
 	if !found {
-		return 0, errors.New("vhost record not found")
+		return 0, errors.New("vhost record not found: " + vhost)
 	}
 	d := val.(*tunData)
 	return d.tid, nil
