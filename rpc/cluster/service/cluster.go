@@ -9,12 +9,13 @@ import (
 
 	"github.com/GZShi/net-agent/rpc/cluster/def"
 	"github.com/GZShi/net-agent/tunnel"
+	"github.com/GZShi/net-agent/utils"
 )
 
 type cluster struct {
-	ids map[def.TID]tunnel.Tunnel
-
-	vhostMap map[string]def.TID
+	tdata  sync.Map // map[tunnel.Tunnel]*tunData
+	ids    sync.Map // map[def.TID]tunnel.Tunnel
+	vhosts sync.Map // map[string]def.TID
 
 	labelMap map[string]*tlist
 
@@ -37,8 +38,6 @@ func getCluster() *cluster {
 func newCluster() *cluster {
 	return &cluster{
 		idSequence: 1,
-		ids:        make(map[def.TID]tunnel.Tunnel),
-		vhostMap:   make(map[string]def.TID),
 		labelMap:   make(map[string]*tlist),
 	}
 }
@@ -47,56 +46,61 @@ func (ts *cluster) NextTID() def.TID {
 	return def.TID(atomic.AddUint32(&ts.idSequence, 1))
 }
 
-func (ts *cluster) lookup(vhost string) (def.TID, error) {
-	tid, found := ts.vhostMap[vhost]
+func (ts *cluster) Lookup(vhost string) (def.TID, error) {
+	if !strings.HasSuffix(vhost, ".tunnel") {
+		return 0, errors.New("can't resolve vhost: " + vhost)
+	}
+	val, found := ts.vhosts.Load(vhost[:len(vhost)-7])
 	if !found {
 		return 0, errors.New("vhost record not found")
 	}
-	return tid, nil
+	d := val.(*tunData)
+	return d.tid, nil
 }
 
-func (ts *cluster) Lookup(vhost string) (def.TID, error) {
-	ts.mut.Lock()
-	defer ts.mut.Unlock()
-	return ts.lookup(vhost)
-}
+func (ts *cluster) Join(t tunnel.Tunnel, vhost string) (*tunData, error) {
 
-func (ts *cluster) Join(t tunnel.Tunnel, vhost string) (def.TID, error) {
-	ts.mut.Lock()
-	defer ts.mut.Unlock()
-
-	_, err := ts.lookup(vhost)
-	if err == nil {
-		return 0, errors.New("vhost exists")
+	// 第一步，判断是否已经存在
+	d := &tunData{
+		t:   t,
+		tid: ts.NextTID(),
+	}
+	_, loaded := ts.tdata.LoadOrStore(t, d)
+	if loaded {
+		return nil, errors.New("tunnel found")
 	}
 
-	tid := ts.NextTID()
-	ts.ids[tid] = t
-	ts.vhostMap[vhost] = tid
+	ts.ids.Store(d.tid, d)
 
-	return tid, nil
-}
-
-func (ts *cluster) Detach(tid def.TID) {
-	ts.mut.Lock()
-	defer ts.mut.Unlock()
-
-	delete(ts.ids, tid)
-}
-
-func (ts *cluster) findByID(id def.TID) (tunnel.Tunnel, error) {
-	t, found := ts.ids[id]
-	if found {
-		return t, nil
+	// bind vhost to tunData
+	// todo: 优化性能
+	_, loaded = ts.vhosts.LoadOrStore(vhost, d)
+	for loaded {
+		vhost = utils.NextNameStr(vhost)
+		_, loaded = ts.vhosts.LoadOrStore(vhost, d)
 	}
+	d.vhost = vhost
 
-	return nil, fmt.Errorf("tid=%v not found", id)
+	return d, nil
+}
+
+func (ts *cluster) Detach(t tunnel.Tunnel) {
+	val, loaded := ts.tdata.LoadAndDelete(t)
+	if !loaded {
+		return
+	}
+	d := val.(*tunData)
+	ts.ids.Delete(d.tid)
+	ts.vhosts.Delete(d.vhost)
 }
 
 func (ts *cluster) FindTunnelByID(tid def.TID) (tunnel.Tunnel, error) {
-	ts.mut.RLock()
-	defer ts.mut.RUnlock()
-	return ts.findByID(tid)
+	val, found := ts.ids.Load(tid)
+	if found {
+		return val.(*tunData).t, nil
+	}
+
+	return nil, fmt.Errorf("tid=%v not found", tid)
 }
 
 func (ts *cluster) findByLabel(label string) (*tlist, error) {

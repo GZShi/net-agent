@@ -4,7 +4,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/GZShi/net-agent/bin/config"
+	"github.com/GZShi/net-agent/bin/common"
 	"github.com/GZShi/net-agent/cipherconn"
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/rpc/cluster"
@@ -14,7 +14,7 @@ import (
 
 func main() {
 	var configPath = "./configs.json"
-	var cfg config.Config
+	var cfg common.Config
 	err := utils.LoadJSONFile(configPath, &cfg)
 	if err != nil {
 		log.Get().WithError(err).WithField("path", configPath).Error("load config file failed")
@@ -36,11 +36,11 @@ func main() {
 			return
 		}
 
-		serve(conn, &cfg)
+		go serve(conn, &cfg)
 	}
 }
 
-func serve(conn net.Conn, cfg *config.Config) {
+func serve(conn net.Conn, cfg *common.Config) {
 	defer conn.Close()
 	defer func() {
 		if r := recover(); r != nil {
@@ -58,10 +58,12 @@ func serve(conn net.Conn, cfg *config.Config) {
 
 	t.BindServices(cluster.NewService())
 
+	log.Get().Info("tunnel connected")
 	t.Run()
+	log.Get().Info("tunnel stopped")
 }
 
-func runService(t tunnel.Tunnel, svc config.ServiceInfo) {
+func runService(t tunnel.Tunnel, svc common.ServiceInfo) {
 	if !svc.Enable {
 		return
 	}

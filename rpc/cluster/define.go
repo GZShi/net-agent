@@ -53,6 +53,12 @@ func (s *svc) Exec(ctx tunnel.Context) error {
 	case "Login":
 		s.Login(ctx)
 		return nil
+	case "Logout":
+		s.Logout(ctx)
+		return nil
+	case "Heartbeat":
+		s.Heartbeat(ctx)
+		return nil
 	case "DialByTID":
 		s.DialByTID(ctx)
 		return nil

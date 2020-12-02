@@ -7,13 +7,20 @@
 
   "services": [{
     "enable": true,
-    "description": "将本地网络用socks5方式暴露在vip.tunnel:1081上",
+    "description": "将本地网络用socks5协议暴露在test.tunnel:1081上",
     "type": "socks5",
     "param": {
-      "listen": "vip.tunnel:1081",
+      "listen": "tunnel:1081",
       "username": "",
-      "password": "",
-      "connect": "direct"
+      "password": ""
+    }
+  }, {
+    "enable": true,
+    "description": "将test.tunnel:1081的服务用本地地址localhost:1082进行代理",
+    "type": "portproxy",
+    "param": {
+      "listen": "localhost:2037",
+      "target": "test.tunnel:1081"
     }
   }]
 }
