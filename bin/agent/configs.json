@@ -2,6 +2,10 @@
   "tunnel": {
     "address": "localhost:2035",
     "password": "",
+
+    // 向服务器注册的虚拟子域名
+    // 如果已经被注册，服务器会自动增加数字后缀，例如：test_1
+    // 注册成功后，其它节点可以通过 test.tunnel 这样的虚拟域名访问本机的services
     "vhost": "test"
   },
 

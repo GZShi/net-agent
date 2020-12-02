@@ -1,6 +1,6 @@
 {
   "tunnel": {
-    "address": "localhost:2035",
+    "address": "0.0.0.0:2035",
     "password": ""
   },
 
