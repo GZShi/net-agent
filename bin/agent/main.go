@@ -1,10 +1,7 @@
 package main
 
 import (
-	"net"
-
 	"github.com/GZShi/net-agent/bin/common"
-	"github.com/GZShi/net-agent/cipherconn"
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/rpc/cluster"
 	"github.com/GZShi/net-agent/tunnel"
@@ -20,19 +17,12 @@ func main() {
 		return
 	}
 
-	conn, err := net.Dial("tcp4", cfg.Tunnel.Address)
+	t, err := common.ConnectTunnel(&cfg.Tunnel)
 	if err != nil {
-		log.Get().WithError(err).Error("connect to tunnel failed: ", cfg.Tunnel.Address)
+		log.Get().WithError(err).Error("connect tunnel failed")
 		return
 	}
 
-	cc, err := cipherconn.New(conn, cfg.Tunnel.Password)
-	if err != nil {
-		log.Get().WithError(err).Error("create cipherconn failed")
-		return
-	}
-
-	t := tunnel.New(cc)
 	cls := cluster.NewClient(t, nil)
 
 	t.Ready(func(t tunnel.Tunnel) {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"net"
-	"strings"
 
 	"github.com/GZShi/net-agent/bin/common"
 	"github.com/GZShi/net-agent/cipherconn"
@@ -61,31 +60,4 @@ func serve(conn net.Conn, cfg *common.Config) {
 	log.Get().Info("tunnel connected")
 	t.Run()
 	log.Get().Info("tunnel stopped")
-}
-
-func runService(t tunnel.Tunnel, svc common.ServiceInfo) {
-	if !svc.Enable {
-		return
-	}
-
-	log.Get().Info(svc.Desc)
-
-	switch svc.Type {
-	case "socks5":
-	case "portproxy":
-	default:
-		log.Get().Error("unknown service type: ", svc.Type)
-		return
-	}
-}
-
-func listen(t tunnel.Tunnel, address string) (net.Listener, error) {
-	if strings.Contains(address, ".tunnel:") && t != nil {
-		return t.Listen(1080)
-	}
-	return net.Listen("tcp4", address)
-}
-
-func openSocks5Service(t tunnel.Tunnel, param interface{}) {
-
 }

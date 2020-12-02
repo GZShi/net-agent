@@ -1,5 +1,6 @@
 {
   "tunnel": {
+    "network": "tcp4",
     "address": "localhost:2035",
     "password": "",
 
