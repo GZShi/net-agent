@@ -33,12 +33,12 @@ func confer(wr io.ReadWriter, password string) (enc cipher.Stream, dec cipher.St
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		recvErr = recvIV(wr, req)
+		recvErr = recvIV(wr, password, req)
 		wg.Done()
 	}()
 	wg.Add(1)
 	go func() {
-		sendErr = sendIV(wr, resp)
+		sendErr = sendIV(wr, password, resp)
 		wg.Done()
 	}()
 
@@ -61,21 +61,21 @@ func confer(wr io.ReadWriter, password string) (enc cipher.Stream, dec cipher.St
 	return enc, dec, nil
 }
 
-func recvIV(r io.Reader, data *ivdata) error {
+func recvIV(r io.Reader, password string, data *ivdata) error {
 
 	if _, err := data.ReadFrom(r); err != nil {
 		return err
 	}
-	if !data.Verify() {
+	if !data.Verify(password) {
 		return errors.New("verify failed")
 	}
 
 	return nil
 }
 
-func sendIV(w io.Writer, data *ivdata) error {
+func sendIV(w io.Writer, password string, data *ivdata) error {
 
-	if err := data.Gen(); err != nil {
+	if err := data.Gen(password); err != nil {
 		return err
 	}
 	if _, err := data.WriteTo(w); err != nil {

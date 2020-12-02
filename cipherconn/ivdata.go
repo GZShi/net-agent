@@ -26,13 +26,14 @@ func newIvData() *ivdata {
 	}
 }
 
-func (p *ivdata) Gen() error {
+func (p *ivdata) Gen(password string) error {
 	p.code = 0x09
 	p.iv = make([]byte, p.ivLen)
 	_, err := rand.Read(p.iv)
 
 	h := md5.New()
 	h.Write(p.iv)
+	h.Write([]byte(password))
 	checksum := h.Sum(nil)[0:checksumLen]
 	if len(checksum) < checksumLen {
 		return errors.New("length of checksum buf is too long")
@@ -41,9 +42,10 @@ func (p *ivdata) Gen() error {
 	return err
 }
 
-func (p *ivdata) Verify() bool {
+func (p *ivdata) Verify(password string) bool {
 	h := md5.New()
 	h.Write(p.iv)
+	h.Write([]byte(password))
 	checksum := h.Sum(nil)
 	if len(checksum) < checksumLen {
 		return false
