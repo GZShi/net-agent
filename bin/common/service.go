@@ -1,7 +1,7 @@
 package common
 
 import (
-	log "github.com/GZShi/net-agent/logger"
+	"github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/rpc/cluster/def"
 	"github.com/GZShi/net-agent/tunnel"
 )
@@ -15,18 +15,22 @@ type ServiceInfo struct {
 }
 
 // RunService 运行服务
-func RunService(t tunnel.Tunnel, cls def.Cluster, info ServiceInfo) {
+func RunService(t tunnel.Tunnel, cls def.Cluster, index int, info ServiceInfo) {
+	log := logger.Get().WithField("svcindex", index)
+
 	if !info.Enable {
+		log.WithField("desc", info.Desc).Warn("service disabled")
 		return
 	}
 
 	switch info.Type {
 	case "socks5":
-		go RunSocks5Server(t, cls, info.Desc, info.Param)
+		RunSocks5Server(t, cls, info.Param, log)
 	case "portproxy":
-		go RunPortproxy(t, cls, info.Desc, info.Param)
+		RunPortproxy(t, cls, info.Param, log)
 	default:
-		log.Get().Error("unknown service type: " + info.Type)
+		log.Error("unknown service type: " + info.Type)
 	}
 
+	log.WithField("desc", info.Desc).Info("service running")
 }

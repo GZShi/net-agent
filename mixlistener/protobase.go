@@ -10,6 +10,8 @@ const (
 	HTTPName = "http"
 	// Socks5Name ...
 	Socks5Name = "socks5"
+	// TunnelName ...
+	TunnelName = "tunnel"
 )
 
 // ProtoListener 单一协议的特征识别与监听程序
