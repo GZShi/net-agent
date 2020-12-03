@@ -8,8 +8,8 @@ import (
 
 // AuthChecker 进行身份校验的状态机
 type AuthChecker interface {
-	Start(r io.Reader) (respData []byte, hasNext bool, err error)
-	Next(r io.Reader) (respData []byte, hasNext bool, err error)
+	Start(r io.Reader, ctx map[string]string) (respData []byte, hasNext bool, err error)
+	Next(r io.Reader, ctx map[string]string) (respData []byte, hasNext bool, err error)
 }
 
 // DefaultAuthChecker 缺省身份校验（无校验）
@@ -36,34 +36,34 @@ func NoAuthChecker() AuthChecker {
 
 type noAuthChecker struct{}
 
-func (checker *noAuthChecker) Start(r io.Reader) ([]byte, bool, error) {
+func (checker *noAuthChecker) Start(r io.Reader, ctx map[string]string) ([]byte, bool, error) {
 	if err := checkHandshakeMethods(r, MethodNoAuth); err != nil {
 		return []byte{dataVersion, MethodNoAcceptable}, false, err
 	}
 	return []byte{dataVersion, MethodNoAuth}, false, nil
 }
 
-func (checker *noAuthChecker) Next(r io.Reader) ([]byte, bool, error) {
+func (checker *noAuthChecker) Next(r io.Reader, ctx map[string]string) ([]byte, bool, error) {
 	return nil, false, errors.New("unexpected data")
 }
 
 // PswdAuthChecker 用户名密码校验
-func PswdAuthChecker(checkPswd func(string, string) error) AuthChecker {
+func PswdAuthChecker(checkPswd func(string, string, map[string]string) error) AuthChecker {
 	return &pswdAuthChecker{checkPswd}
 }
 
 type pswdAuthChecker struct {
-	checkPswdFunc func(string, string) error
+	checkPswdFunc func(string, string, map[string]string) error
 }
 
-func (checker *pswdAuthChecker) Start(r io.Reader) ([]byte, bool, error) {
+func (checker *pswdAuthChecker) Start(r io.Reader, ctx map[string]string) ([]byte, bool, error) {
 	if err := checkHandshakeMethods(r, MethodNoAuth); err != nil {
 		return []byte{dataVersion, MethodNoAcceptable}, false, err
 	}
 	return []byte{dataVersion, MethodAuthPswd}, true, nil
 }
 
-func (checker *pswdAuthChecker) Next(r io.Reader) ([]byte, bool, error) {
+func (checker *pswdAuthChecker) Next(r io.Reader, ctx map[string]string) ([]byte, bool, error) {
 	resp := []byte{0x01, 0x01}
 
 	buf := make([]byte, 2)
@@ -89,7 +89,7 @@ func (checker *pswdAuthChecker) Next(r io.Reader) ([]byte, bool, error) {
 	}
 	password := string(buf3)
 
-	err = checker.checkPswdFunc(username, password)
+	err = checker.checkPswdFunc(username, password, ctx)
 	if err != nil {
 		return resp, false, err
 	}

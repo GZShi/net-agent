@@ -17,7 +17,7 @@ var (
 )
 
 // DefaultRequester 执行net.Dial创建连接，并将两个net.Conn进行连接
-func DefaultRequester(req Request) (net.Conn, error) {
+func DefaultRequester(req Request, ctx map[string]string) (net.Conn, error) {
 	if req.GetCommand() != ConnectCommand {
 		return nil, ErrCommandNotSupport
 	}

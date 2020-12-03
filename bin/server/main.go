@@ -1,9 +1,11 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/GZShi/net-agent/bin/common"
@@ -12,6 +14,7 @@ import (
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/mixlistener"
 	"github.com/GZShi/net-agent/rpc/cluster"
+	"github.com/GZShi/net-agent/socks5"
 	"github.com/GZShi/net-agent/tunnel"
 	"github.com/GZShi/net-agent/utils"
 )
@@ -30,11 +33,16 @@ func main() {
 
 	// run tunnel server
 	mixl := mixlistener.Listen("tcp4", cfg.Tunnel.Address)
-	mixl.RegisterBuiltIn(mixlistener.HTTPName, mixlistener.TunnelName)
+	mixl.RegisterBuiltIn(
+		mixlistener.HTTPName,
+		mixlistener.TunnelName,
+		mixlistener.Socks5Name,
+	)
 
 	var wg sync.WaitGroup
 	go runTunnelServer(mixl, &cfg, &wg)
 	go runWsUpgraderServer(mixl, &cfg, &wg)
+	go runSocks5Server(mixl, &cfg, &wg)
 
 	log.Get().Info("server running on ", cfg.Tunnel.Address)
 
@@ -130,4 +138,56 @@ func runWsUpgraderServer(mixl mixlistener.MixListener, cfg *common.Config, wg *s
 
 	log.Get().Info("websocket server enabled")
 	http.Serve(l, nil)
+}
+
+func runSocks5Server(mixl mixlistener.MixListener, cfg *common.Config, wg *sync.WaitGroup) {
+	wg.Add(1)
+	defer wg.Done()
+
+	l, err := mixl.GetListener(mixlistener.Socks5Name)
+	if err != nil {
+		log.Get().WithError(err).Error("get listener failed")
+		return
+	}
+
+	s := socks5.NewServer()
+
+	s.SetAuthChecker(socks5.PswdAuthChecker(func(username, password string, ctx map[string]string) (err error) {
+		defer func() {
+			if err != nil {
+				log.Get().WithError(err).Error("auth failed")
+			}
+		}()
+
+		if ctx == nil {
+			return errors.New("auth ctx is nil")
+		}
+
+		parts := strings.Split(username, "@")
+		if len(parts) != 2 {
+			return errors.New("parse username failed")
+		}
+
+		ctx["username"] = parts[0]
+		ctx["password"] = password
+		ctx["proxy"] = parts[1]
+
+		return nil
+	}))
+
+	s.SetRequster(func(req socks5.Request, ctx map[string]string) (conn net.Conn, err error) {
+		defer func() {
+			if err != nil {
+				log.Get().WithError(err).Error("auth failed")
+			}
+		}()
+
+		if ctx == nil {
+			return nil, errors.New("request ctx is nil")
+		}
+
+		return nil, errors.New("cluster not found")
+	})
+
+	s.Run(l)
 }

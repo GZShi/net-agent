@@ -59,7 +59,7 @@ func makeDialer(t tunnel.Tunnel, log *logrus.Entry) socks5.Requester {
 	dialClient := dial.NewClient(t, nil)
 	clsClient := cluster.NewClient(t, nil)
 
-	return func(req socks5.Request) (net.Conn, error) {
+	return func(req socks5.Request, ctx map[string]string) (net.Conn, error) {
 		if req.GetCommand() != socks5.ConnectCommand {
 			return nil, socks5.ErrCommandNotSupport
 		}
@@ -86,7 +86,7 @@ func makeDialer(t tunnel.Tunnel, log *logrus.Entry) socks5.Requester {
 }
 
 func makeDialer2(t tunnel.Tunnel, log *logrus.Entry) socks5.Requester {
-	return func(req socks5.Request) (net.Conn, error) {
+	return func(req socks5.Request, ctx map[string]string) (net.Conn, error) {
 		if req.GetCommand() != socks5.ConnectCommand {
 			return nil, socks5.ErrCommandNotSupport
 		}

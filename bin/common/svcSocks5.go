@@ -24,7 +24,7 @@ func RunSocks5Server(t tunnel.Tunnel, cls def.Cluster, param map[string]string, 
 	s := socks5.NewServer()
 	checker := socks5.NoAuthChecker()
 	if username != "" || password != "" {
-		checker = socks5.PswdAuthChecker(func(u, p string) error {
+		checker = socks5.PswdAuthChecker(func(u, p string, ctx map[string]string) error {
 			if u == username && p == password {
 				return nil
 			}

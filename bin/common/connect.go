@@ -32,7 +32,7 @@ func ConnectTunnel(info *TunnelInfo) (tunnel.Tunnel, error) {
 	}
 
 	if err != nil {
-		return nil, errors.New("connect to tunnel failed: " + info.Address)
+		return nil, err
 	}
 
 	cc, err := cipherconn.New(conn, info.Password)
