@@ -48,9 +48,8 @@ func main() {
 
 		// run service
 		if cfg.Services != nil {
-			for _, svc := range cfg.Services {
-				log.Get().Debug("start running service")
-				go common.RunService(t, cls, svc)
+			for index, svc := range cfg.Services {
+				common.RunService(t, cls, index, svc)
 			}
 		}
 	})

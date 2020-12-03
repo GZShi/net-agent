@@ -53,6 +53,8 @@ func (ml *mixlisn) RegisterBuiltIn(protoNames ...string) {
 			err = ml.Register(HTTP())
 		case Socks5Name:
 			err = ml.Register(Socks5())
+		case TunnelName:
+			err = ml.Register(Tunnel())
 		default:
 			err = errors.New("built-in proto not found")
 		}
