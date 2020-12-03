@@ -2,7 +2,6 @@ package mixlistener
 
 import (
 	"bufio"
-	"log"
 	"net"
 )
 
@@ -20,6 +19,5 @@ func newBufconn(raw net.Conn) *bufconn {
 }
 
 func (conn *bufconn) Read(b []byte) (int, error) {
-	log.Println("call buffed reader")
 	return conn.Reader.Read(b)
 }

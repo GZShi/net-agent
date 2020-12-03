@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+
 	"github.com/GZShi/net-agent/bin/common"
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/rpc/cluster"
@@ -9,7 +11,10 @@ import (
 )
 
 func main() {
-	var configPath = "./configs.json"
+	var configPath string
+	flag.StringVar(&configPath, "c", "./config.json", "filepath of config json file")
+	flag.Parse()
+
 	var cfg common.Config
 	err := utils.LoadJSONFile(configPath, &cfg)
 	if err != nil {

@@ -1,7 +1,8 @@
 {
   "tunnel": {
     "network": "tcp4",
-    "address": "localhost:2035",
+    "addressx": "localhost:2035",
+    "address": "ws://localhost:2035/tunnel",
     "password": "",
 
     // 向服务器注册的虚拟子域名

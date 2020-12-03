@@ -7,6 +7,7 @@ import (
 
 // MixListener 混合协议监听程序
 // 可以实现在同一个端口，根据不同协议特征进行连接分发
+// 可以实现在同一个端口，根据不同协议特征进行连接分发
 type MixListener interface {
 	Register(proto ProtoListener) error
 	RegisterBuiltIn(protoName ...string)
@@ -34,8 +35,8 @@ type mixlisn struct {
 	addr     string
 }
 
-func (ml *mixlisn) Register(newProto ProtoListener) error {
-	proto, found := ml.protoMap[newProto.Name()]
+func (ml *mixlisn) Register(proto ProtoListener) error {
+	_, found := ml.protoMap[proto.Name()]
 	if found {
 		return errors.New("proto exists")
 	}

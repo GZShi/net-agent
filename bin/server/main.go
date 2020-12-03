@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"net"
 	"net/http"
 	"sync"
@@ -16,7 +17,10 @@ import (
 )
 
 func main() {
-	var configPath = "./configs.json"
+	var configPath string
+	flag.StringVar(&configPath, "c", "./config.json", "filepath of config json file")
+	flag.Parse()
+
 	var cfg common.Config
 	err := utils.LoadJSONFile(configPath, &cfg)
 	if err != nil {
@@ -109,7 +113,7 @@ func runWsUpgraderServer(mixl mixlistener.MixListener, cfg *common.Config, wg *s
 		}
 	}
 
-	http.HandleFunc("/tunnel", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(cfg.Websocket.Path, func(w http.ResponseWriter, r *http.Request) {
 		conn, err := ws.Upgrade(w, r)
 		if err != nil {
 			w.Write([]byte("upgrade failed"))
@@ -117,6 +121,11 @@ func runWsUpgraderServer(mixl mixlistener.MixListener, cfg *common.Config, wg *s
 		}
 
 		go serve(conn, cfg)
+	})
+
+	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("hello,world"))
 	})
 
 	log.Get().Info("websocket server enabled")

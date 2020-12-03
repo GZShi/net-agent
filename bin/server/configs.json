@@ -1,8 +1,0 @@
-{
-  "tunnel": {
-    "address": "0.0.0.0:2035",
-    "password": ""
-  },
-
-  "services": []
-}

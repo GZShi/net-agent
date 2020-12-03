@@ -3,7 +3,9 @@ package common
 import (
 	"errors"
 	"net"
+	"strings"
 
+	"github.com/GZShi/net-agent/bin/ws"
 	"github.com/GZShi/net-agent/cipherconn"
 	"github.com/GZShi/net-agent/tunnel"
 )
@@ -19,7 +21,16 @@ type TunnelInfo struct {
 // ConnectTunnel 根据配置信息创建隧道连接
 func ConnectTunnel(info *TunnelInfo) (tunnel.Tunnel, error) {
 
-	conn, err := net.Dial("tcp4", info.Address)
+	var conn net.Conn
+	var err error
+	addr := info.Address
+
+	if strings.HasPrefix(addr, "ws://") || strings.HasPrefix(addr, "wss://") {
+		conn, err = ws.Dial(addr)
+	} else {
+		conn, err = net.Dial("tcp4", info.Address)
+	}
+
 	if err != nil {
 		return nil, errors.New("connect to tunnel failed: " + info.Address)
 	}
