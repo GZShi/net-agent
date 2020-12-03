@@ -60,6 +60,10 @@ func (ts *cluster) Lookup(vhost string) (def.TID, error) {
 
 func (ts *cluster) Join(t tunnel.Tunnel, vhost string) (*tunData, error) {
 
+	if len(vhost) < 4 {
+		return nil, errors.New("vhost too short")
+	}
+
 	// 第一步，判断是否已经存在
 	d := &tunData{
 		t:   t,
