@@ -2,11 +2,8 @@ package main
 
 import (
 	"net"
-<<<<<<< HEAD
-=======
 	"net/http"
 	"sync"
->>>>>>> b382036b062b797046b3581c117c0853381f930a
 
 	"github.com/GZShi/net-agent/bin/common"
 	"github.com/GZShi/net-agent/bin/ws"
@@ -70,8 +67,6 @@ func serve(conn net.Conn, cfg *common.Config) {
 	t.Run()
 	log.Get().Info("tunnel stopped")
 }
-<<<<<<< HEAD
-=======
 
 func runTunnelServer(mixl mixlistener.MixListener, cfg *common.Config, wg *sync.WaitGroup) {
 	wg.Add(1)
@@ -127,4 +122,3 @@ func runWsUpgraderServer(mixl mixlistener.MixListener, cfg *common.Config, wg *s
 	log.Get().Info("websocket server enabled")
 	http.Serve(l, nil)
 }
->>>>>>> b382036b062b797046b3581c117c0853381f930a
