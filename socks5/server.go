@@ -7,7 +7,7 @@ import (
 )
 
 // Requester 解析客户端命令的函数
-type Requester func(Request) (net.Conn, error)
+type Requester func(req Request, ctx map[string]string) (net.Conn, error)
 
 // AuthPswdFunc 认证账号密码
 type AuthPswdFunc func(username, password string) error
@@ -73,10 +73,12 @@ func (s *server) ListenAndRun(addr string) error {
 func (s *server) serve(conn net.Conn) error {
 	defer conn.Close()
 
+	ctx := make(map[string]string)
+
 	//
 	// 使用checker协议进行握手和身份校验
 	//
-	resp, next, err := s.checker.Start(conn)
+	resp, next, err := s.checker.Start(conn, ctx)
 	if err != nil {
 		return err
 	}
@@ -86,7 +88,7 @@ func (s *server) serve(conn net.Conn) error {
 	}
 
 	for next {
-		resp, next, err = s.checker.Next(conn)
+		resp, next, err = s.checker.Next(conn, ctx)
 		if err != nil {
 			return err
 		}
@@ -102,7 +104,7 @@ func (s *server) serve(conn net.Conn) error {
 		return err
 	}
 
-	target, err := s.requester(&req)
+	target, err := s.requester(&req, ctx)
 	if err != nil {
 		return err
 	}
