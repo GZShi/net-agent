@@ -39,6 +39,9 @@ const (
 	// FrameDialRequest 创建连接的请求
 	FrameDialRequest
 	FrameDialResponse
+
+	FramePing
+	FramePong
 )
 
 // Frame.DataType 字典

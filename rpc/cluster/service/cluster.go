@@ -69,9 +69,16 @@ func (ts *cluster) Join(t tunnel.Tunnel, vhost string) (*tunData, error) {
 		t:   t,
 		tid: ts.NextTID(),
 	}
-	_, loaded := ts.tdata.LoadOrStore(t, d)
+	val, loaded := ts.tdata.LoadOrStore(t, d)
 	if loaded {
-		return nil, errors.New("tunnel found")
+		existsData := val.(*tunData)
+		err := existsData.t.Ping()
+		if err == nil {
+			return nil, errors.New("an alived tunnel found")
+		}
+		// replace with new tunnel
+		existsData.t = t
+		return existsData, nil
 	}
 
 	ts.ids.Store(d.tid, d)
