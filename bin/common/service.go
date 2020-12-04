@@ -23,6 +23,8 @@ func RunService(t tunnel.Tunnel, cls def.Cluster, index int, info ServiceInfo) {
 		return
 	}
 
+	log.WithField("desc", info.Desc).Info("init service")
+
 	switch info.Type {
 	case "socks5":
 		RunSocks5Server(t, cls, info.Param, log)
@@ -31,6 +33,4 @@ func RunService(t tunnel.Tunnel, cls def.Cluster, index int, info ServiceInfo) {
 	default:
 		log.Error("unknown service type: " + info.Type)
 	}
-
-	log.WithField("desc", info.Desc).Info("service running")
 }

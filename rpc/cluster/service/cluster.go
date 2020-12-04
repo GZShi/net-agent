@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/GZShi/net-agent/rpc/cluster/def"
 	"github.com/GZShi/net-agent/tunnel"
@@ -78,6 +79,7 @@ func (ts *cluster) Join(t tunnel.Tunnel, vhost string) (*tunData, error) {
 		}
 		// replace with new tunnel
 		existsData.t = t
+		existsData.lastHeartbeat = time.Now()
 		return existsData, nil
 	}
 

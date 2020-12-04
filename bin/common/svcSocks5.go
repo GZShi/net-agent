@@ -2,6 +2,7 @@ package common
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/GZShi/net-agent/rpc/cluster/def"
 	"github.com/GZShi/net-agent/socks5"
@@ -34,4 +35,8 @@ func RunSocks5Server(t tunnel.Tunnel, cls def.Cluster, param map[string]string, 
 	s.SetAuthChecker(checker)
 
 	go s.Run(l)
+
+	log.
+		WithField("info", fmt.Sprintf("socks5://%v", param["listen"])).
+		Info("service.socks5 is running")
 }

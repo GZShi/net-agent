@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/GZShi/net-agent/rpc/cluster/def"
@@ -19,6 +20,8 @@ func RunPortproxy(t tunnel.Tunnel, cls def.Cluster, param map[string]string, log
 		log.WithError(err).Error("portproxy listen failed")
 		return
 	}
+
+	log.WithField("desc", fmt.Sprintf("%v => %v", param["listen"], param["target"])).Info("service.portproxy is running")
 
 	// 服务启动后不应该阻塞主线程
 	go func() {
