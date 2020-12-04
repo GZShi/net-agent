@@ -1,6 +1,7 @@
 package socks5
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -87,11 +88,13 @@ func (req *request) ReadFrom(r io.Reader) (readed int64, err error) {
 		buf = make([]byte, net.IPv4len+2)
 		rn, err = io.ReadFull(r, buf)
 		readed += int64(rn)
+		req.addressBuf = buf[:len(buf)-2]
 	case IPv6:
 		// 读取IPv6的地址
 		buf = make([]byte, net.IPv6len+2)
 		rn, err = io.ReadFull(r, buf)
 		readed += int64(rn)
+		req.addressBuf = buf[:len(buf)-2]
 	case Domain:
 		// 读取域名地址
 		buf = make([]byte, 1+255+2)
@@ -107,14 +110,13 @@ func (req *request) ReadFrom(r io.Reader) (readed int64, err error) {
 			readed += int64(rn)
 		}
 		buf = buf[0:bufSize]
+		req.addressBuf = buf[1 : len(buf)-2]
 	default:
 		return readed, ErrAddressTypeNotSupport
 	}
 
 	// 把port读取出来，并把addressBuf中的port裁减掉
-	portPos := len(buf) - 2
-	req.addressBuf = buf[1:portPos]
-	req.port = binary.BigEndian.Uint16(buf[portPos:])
+	req.port = binary.BigEndian.Uint16(buf[len(buf)-2:])
 
 	return readed, err
 }
@@ -127,29 +129,33 @@ func (req *request) WriteTo(w io.Writer) (written int64, err error) {
 		return 0, ErrAddressBufTooLong
 	}
 
-	var buf []byte
-	var portPos uint8
+	buf := bytes.NewBuffer(nil)
+	buf.WriteByte(req.version)
+	buf.WriteByte(req.command)
+	buf.WriteByte(0)
+	buf.WriteByte(req.addressType)
+
 	switch req.addressType {
 	case IPv4:
-		portPos = 4 + net.IPv4len
+		if len(req.addressBuf) < net.IPv4len {
+			return 0, errors.New("invalid IPv4 buffer")
+		}
+		buf.Write(req.addressBuf[len(req.addressBuf)-net.IPv4len:])
 	case IPv6:
-		portPos = 4 + net.IPv6len
+		if len(req.addressBuf) != net.IPv6len {
+			return 0, errors.New("invalid IPv6 buffer")
+		}
+		buf.Write(req.addressBuf)
 	case Domain:
-		portPos = 4 + 1 + uint8(len(req.addressBuf))
+		buf.WriteByte(byte(len(req.addressBuf)))
+		buf.Write(req.addressBuf)
 	default:
 		return 0, ErrAddressTypeNotSupport
 	}
 
-	buf = make([]byte, portPos+2)
+	portBuf := []byte{0, 0}
+	binary.BigEndian.PutUint16(portBuf, req.port)
+	buf.Write(portBuf)
 
-	buf[0] = req.version
-	buf[1] = req.command
-	buf[3] = req.addressType
-	buf[4] = byte(len(req.addressBuf))
-	copy(buf[5:portPos], req.addressBuf)
-	binary.BigEndian.PutUint16(buf[portPos:portPos+2], req.port)
-
-	wn, err := w.Write(buf)
-	written = int64(wn)
-	return
+	return buf.WriteTo(w)
 }

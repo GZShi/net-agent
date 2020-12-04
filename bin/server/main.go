@@ -185,7 +185,7 @@ func runSocks5Server(mixl mixlistener.MixListener, cfg *common.Config, wg *sync.
 	s.SetRequster(func(req socks5.Request, ctx map[string]string) (conn net.Conn, err error) {
 		defer func() {
 			if err != nil {
-				log.Get().WithError(err).Error("auth failed")
+				log.Get().WithError(err).Error("request failed")
 			}
 		}()
 
