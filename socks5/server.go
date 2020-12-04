@@ -104,20 +104,42 @@ func (s *server) serve(conn net.Conn) error {
 		return err
 	}
 
-	target, err := s.requester(&req, ctx)
-	if err != nil {
-		return err
+	target, respErr := s.requester(&req, ctx)
+	respCode := repSuccess
+	if respErr != nil {
+		respCode = repFailure
+		switch respErr {
+		case ReplyErrConnectionNotAllow:
+			respCode = repConnectionNotAllow
+		case ReplyErrNetworkUnRereachable:
+			respCode = repNetworkUnRereachable
+		case ReplyErrHostUnreachable:
+			respCode = repHostUnreachable
+		case ReplyErrConnectionRefused:
+			respCode = repConnectionRefused
+		case ReplyErrTTLExpired:
+			respCode = repTTLExpired
+		case ReplyErrCmdNotSupported:
+			respCode = repCmdNotSupported
+		case ReplyErrAtypeNotSupported:
+			respCode = repAtypeNotSupported
+		}
 	}
 
 	// 根据RFC1928，request与reply有相似结构
 	var reply request
 	reply.version = dataVersion
-	reply.command = 0 // success
+	reply.command = respCode // success
 	reply.addressType = IPv4
 	reply.addressBuf = make([]byte, net.IPv4len)
 	reply.port = 0
 
 	_, err = reply.WriteTo(conn)
+
+	if respErr != nil {
+		return respErr
+	}
+
 	if err != nil {
 		return err
 	}

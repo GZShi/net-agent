@@ -1,7 +1,6 @@
 package socks5
 
 import (
-	"errors"
 	"net"
 )
 
@@ -11,15 +10,10 @@ const (
 	UDPCommand     = uint8(0x03)
 )
 
-var (
-	// ErrCommandNotSupport ...
-	ErrCommandNotSupport = errors.New("socks5 command not supported")
-)
-
 // DefaultRequester 执行net.Dial创建连接，并将两个net.Conn进行连接
 func DefaultRequester(req Request, ctx map[string]string) (net.Conn, error) {
 	if req.GetCommand() != ConnectCommand {
-		return nil, ErrCommandNotSupport
+		return nil, ReplyErrCmdNotSupported
 	}
 	return net.Dial("tcp4", req.GetAddrPortStr())
 }
