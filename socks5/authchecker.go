@@ -23,7 +23,7 @@ func checkHandshakeMethods(r io.Reader, want byte) error {
 	if err != nil {
 		return err
 	}
-	if bytes.IndexByte(hs.methods, MethodNoAuth) < 0 {
+	if bytes.IndexByte(hs.methods, want) < 0 {
 		return ErrMethodsNotSupport
 	}
 	return nil
@@ -57,7 +57,7 @@ type pswdAuthChecker struct {
 }
 
 func (checker *pswdAuthChecker) Start(r io.Reader, ctx map[string]string) ([]byte, bool, error) {
-	if err := checkHandshakeMethods(r, MethodNoAuth); err != nil {
+	if err := checkHandshakeMethods(r, MethodAuthPswd); err != nil {
 		return []byte{dataVersion, MethodNoAcceptable}, false, err
 	}
 	return []byte{dataVersion, MethodAuthPswd}, true, nil

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/GZShi/net-agent/rpc/cluster/def"
 	"github.com/GZShi/net-agent/tunnel"
@@ -70,27 +69,33 @@ func (ts *cluster) Join(t tunnel.Tunnel, vhost string) (*tunData, error) {
 		t:   t,
 		tid: ts.NextTID(),
 	}
-	val, loaded := ts.tdata.LoadOrStore(t, d)
+	_, loaded := ts.tdata.LoadOrStore(t, d)
 	if loaded {
-		existsData := val.(*tunData)
-		err := existsData.t.Ping()
-		if err == nil {
-			return nil, errors.New("an alived tunnel found")
-		}
-		// replace with new tunnel
-		existsData.t = t
-		existsData.lastHeartbeat = time.Now()
-		return existsData, nil
+		return nil, errors.New("tunnel repeat login")
 	}
 
 	ts.ids.Store(d.tid, d)
 
 	// bind vhost to tunData
 	// todo: 优化性能
-	_, loaded = ts.vhosts.LoadOrStore(vhost, d)
+	val, loaded := ts.vhosts.LoadOrStore(vhost, d)
 	for loaded {
+		existData := val.(*tunData)
+		if existData.t == nil {
+			existData.vhost = "" // 要置为空，否则close时会误删tid和tunData的绑定
+			ts.vhosts.Store(vhost, d)
+			break
+		}
+
+		err := existData.t.Ping()
+		if err != nil {
+			existData.vhost = "" // 要置为空，否则close时会误删tid和tunData的绑定
+			ts.vhosts.Store(vhost, d)
+			break
+		}
+
 		vhost = utils.NextNameStr(vhost)
-		_, loaded = ts.vhosts.LoadOrStore(vhost, d)
+		val, loaded = ts.vhosts.LoadOrStore(vhost, d)
 	}
 	d.vhost = vhost
 

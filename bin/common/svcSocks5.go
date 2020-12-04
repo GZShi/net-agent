@@ -3,6 +3,7 @@ package common
 import (
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/GZShi/net-agent/rpc/cluster/def"
 	"github.com/GZShi/net-agent/socks5"
@@ -11,15 +12,14 @@ import (
 )
 
 // RunSocks5Server 运行socks5服务
-func RunSocks5Server(t tunnel.Tunnel, cls def.Cluster, param map[string]string, log *logrus.Entry) {
+func RunSocks5Server(t tunnel.Tunnel, cls def.Cluster, param map[string]string, log *logrus.Entry) (io.Closer, error) {
 	listenAddr := param["listen"]
 	username := param["username"]
 	password := param["password"]
 
 	l, err := Listen(t, "tcp4", listenAddr)
 	if err != nil {
-		log.WithError(err).Error("socks5 listen failed")
-		return
+		return nil, err
 	}
 
 	s := socks5.NewServer()
@@ -34,9 +34,14 @@ func RunSocks5Server(t tunnel.Tunnel, cls def.Cluster, param map[string]string, 
 	}
 	s.SetAuthChecker(checker)
 
+	closer := newCloser()
 	go s.Run(l)
+	go func() {
+		closer.WaitClose()
+		s.Stop()
+	}()
 
-	log.
-		WithField("info", fmt.Sprintf("socks5://%v", param["listen"])).
-		Info("service.socks5 is running")
+	log.WithField("info", fmt.Sprintf("socks5://%v", param["listen"])).Info("service.socks5 is running")
+
+	return closer, nil
 }

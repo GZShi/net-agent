@@ -5,6 +5,7 @@ import (
 	"flag"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -14,6 +15,7 @@ import (
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/mixlistener"
 	"github.com/GZShi/net-agent/rpc/cluster"
+	clssvc "github.com/GZShi/net-agent/rpc/cluster/service"
 	"github.com/GZShi/net-agent/socks5"
 	"github.com/GZShi/net-agent/tunnel"
 	"github.com/GZShi/net-agent/utils"
@@ -150,6 +152,7 @@ func runSocks5Server(mixl mixlistener.MixListener, cfg *common.Config, wg *sync.
 		return
 	}
 
+	cls := clssvc.New(nil)
 	s := socks5.NewServer()
 
 	s.SetAuthChecker(socks5.PswdAuthChecker(func(username, password string, ctx map[string]string) (err error) {
@@ -172,6 +175,10 @@ func runSocks5Server(mixl mixlistener.MixListener, cfg *common.Config, wg *sync.
 		ctx["password"] = password
 		ctx["proxy"] = parts[1]
 
+		if parts[0] == "" || password == "" {
+			return errors.New("invalid username and password")
+		}
+
 		return nil
 	}))
 
@@ -186,7 +193,29 @@ func runSocks5Server(mixl mixlistener.MixListener, cfg *common.Config, wg *sync.
 			return nil, errors.New("request ctx is nil")
 		}
 
-		return nil, errors.New("cluster not found")
+		if cls == nil {
+			return nil, errors.New("cluster is nil")
+		}
+
+		vhost, port, err := net.SplitHostPort(ctx["proxy"])
+		if err != nil {
+			return nil, err
+		}
+		if !strings.HasSuffix(vhost, ".tunnel") {
+			return nil, errors.New("host not support")
+		}
+		vport, err := strconv.Atoi(port)
+		if err != nil {
+			return nil, err
+		}
+
+		conn, err = cls.Dial(vhost, uint32(vport))
+		if err != nil {
+			return nil, err
+		}
+
+		auth := socks5.AuthPswd(ctx["username"], ctx["password"])
+		return socks5.Upgrade(conn, req.GetAddrPortStr(), auth)
 	})
 
 	s.Run(l)
