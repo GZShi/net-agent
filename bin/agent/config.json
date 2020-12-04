@@ -17,8 +17,8 @@
     "type": "socks5",
     "param": {
       "listen": "tunnel:1081",
-      "username": "",
-      "password": ""
+      "username": "ping",
+      "password": "pong"
     }
   }, {
     "enable": true,
