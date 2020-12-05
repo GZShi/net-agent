@@ -7,9 +7,13 @@ const (
 	dataVerPswd = uint8(0x01)
 	dataRsv     = uint8(0x00)
 
-	MethodNoAuth       = uint8(0x00)
-	MethodGssapi       = uint8(0x01)
-	MethodAuthPswd     = uint8(0x02)
+	// MethodNoAuth ...
+	MethodNoAuth = uint8(0x00)
+	// MethodGssapi ...
+	MethodGssapi = uint8(0x01)
+	// MethodAuthPswd ...
+	MethodAuthPswd = uint8(0x02)
+	// MethodNoAcceptable ...
 	MethodNoAcceptable = uint8(0xff)
 
 	repSuccess              = uint8(0x00)
@@ -24,12 +28,20 @@ const (
 )
 
 var (
-	ReplyErrFailure              = errors.New("general SOCKS server failure")
-	ReplyErrConnectionNotAllow   = errors.New("connection not allowed by ruleset")
-	ReplyErrNetworkUnRereachable = errors.New("Network unreachable")
-	ReplyErrHostUnreachable      = errors.New("Host unreachable")
-	ReplyErrConnectionRefused    = errors.New("Connection refused")
-	ReplyErrTTLExpired           = errors.New("TTL expired")
-	ReplyErrCmdNotSupported      = errors.New("Command not supported")
-	ReplyErrAtypeNotSupported    = errors.New("Address type not supported")
+	// ErrReplyFailure ...
+	ErrReplyFailure = errors.New("general SOCKS server failure")
+	// ErrReplyConnectionNotAllow ...
+	ErrReplyConnectionNotAllow = errors.New("connection not allowed by ruleset")
+	// ErrReplyNetworkUnRereachable ...
+	ErrReplyNetworkUnRereachable = errors.New("network unreachable")
+	// ErrReplyHostUnreachable ...
+	ErrReplyHostUnreachable = errors.New("host unreachable")
+	// ErrReplyConnectionRefused ...
+	ErrReplyConnectionRefused = errors.New("connection refused")
+	// ErrReplyTTLExpired ...
+	ErrReplyTTLExpired = errors.New("TTL expired")
+	// ErrReplyCmdNotSupported ...
+	ErrReplyCmdNotSupported = errors.New("command not supported")
+	// ErrReplyAtypeNotSupported ...
+	ErrReplyAtypeNotSupported = errors.New("address type not supported")
 )

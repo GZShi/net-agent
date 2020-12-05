@@ -109,19 +109,19 @@ func (s *server) serve(conn net.Conn) error {
 	if respErr != nil {
 		respCode = repFailure
 		switch respErr {
-		case ReplyErrConnectionNotAllow:
+		case ErrReplyConnectionNotAllow:
 			respCode = repConnectionNotAllow
-		case ReplyErrNetworkUnRereachable:
+		case ErrReplyNetworkUnRereachable:
 			respCode = repNetworkUnRereachable
-		case ReplyErrHostUnreachable:
+		case ErrReplyHostUnreachable:
 			respCode = repHostUnreachable
-		case ReplyErrConnectionRefused:
+		case ErrReplyConnectionRefused:
 			respCode = repConnectionRefused
-		case ReplyErrTTLExpired:
+		case ErrReplyTTLExpired:
 			respCode = repTTLExpired
-		case ReplyErrCmdNotSupported:
+		case ErrReplyCmdNotSupported:
 			respCode = repCmdNotSupported
-		case ReplyErrAtypeNotSupported:
+		case ErrReplyAtypeNotSupported:
 			respCode = repAtypeNotSupported
 		}
 	}

@@ -214,8 +214,15 @@ func runSocks5Server(mixl mixlistener.MixListener, cfg *common.Config, wg *sync.
 			return nil, err
 		}
 
-		auth := socks5.AuthPswd(ctx["username"], ctx["password"])
-		return socks5.Upgrade(conn, req.GetAddrPortStr(), auth)
+		proxy := &socks5.ProxyInfo{
+			Network:  "tcp4",
+			Address:  ctx["proxy"],
+			NeedAuth: true,
+			Username: ctx["username"],
+			Password: ctx["password"],
+		}
+
+		return proxy.Upgrade(conn, req.GetAddrPortStr())
 	})
 
 	s.Run(l)
