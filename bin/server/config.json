@@ -1,0 +1,18 @@
+{
+  "tunnel": {
+    "address": "0.0.0.0:2035",
+    "password": ""
+  },
+
+  "websocket": {
+    "enable": true,
+    "path": "/tunnel"
+  },
+
+  "dashboard": {
+    "enable": true,
+    "path": "/test"
+  },
+
+  "services": []
+}

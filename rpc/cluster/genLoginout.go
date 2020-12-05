@@ -5,28 +5,45 @@ import (
 	"github.com/GZShi/net-agent/tunnel"
 )
 
+type stReqLogin struct {
+	Vhost string `json:"vhost"`
+}
 type stRespLogin struct {
-	TID def.TID `json:"tid"`
+	TID   def.TID `json:"tid"`
+	Vhost string  `json:"vhost"`
 }
 
-func (c *client) Login() (def.TID, error) {
+func (c *client) Login(vhost string) (def.TID, string, error) {
 	var resp stRespLogin
-	err := c.t.SendJSON(c.ctx, tunnel.JoinServiceMethod(c.prefix, "Login"), nil, &resp)
+	err := c.t.SendJSON(c.ctx, tunnel.JoinServiceMethod(c.prefix, "Login"),
+		&stReqLogin{vhost}, &resp)
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
-	return resp.TID, nil
+	return resp.TID, resp.Vhost, nil
 }
 
 func (s *svc) Login(ctx tunnel.Context) {
-	tid, err := s.impl.Login()
+	var req stReqLogin
+	err := ctx.GetJSON(&req)
 	if err != nil {
 		ctx.Error(err)
 		return
 	}
-	ctx.JSON(&stRespLogin{tid})
+	tid, vhost, err := s.impl.Login(req.Vhost)
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(&stRespLogin{tid, vhost})
 }
 
 func (c *client) Logout() error {
-	return c.t.SendJSON(c.ctx, tunnel.JoinServiceMethod(c.prefix, "Logout"), nil, nil)
+	return c.t.SendJSON(c.ctx,
+		tunnel.JoinServiceMethod(c.prefix, "Logout"), nil, nil)
+}
+
+func (s *svc) Logout(ctx tunnel.Context) {
+	s.impl.Logout()
+	ctx.JSON(nil)
 }

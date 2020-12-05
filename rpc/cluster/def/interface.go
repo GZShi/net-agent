@@ -1,5 +1,7 @@
 package def
 
+import "net"
+
 const (
 	namePrefix         = "cluster"
 	nameOfJoin         = "cluster/join"
@@ -13,9 +15,12 @@ type TID uint32
 
 // Cluster 集群管理
 type Cluster interface {
-	Login() (TID, error)
+	Login(vhost string) (TID, string, error)
 	Logout() error
+	Heartbeat() error
+
 	DialByTID(tid TID, writeSID uint32, network, address string) (readSID uint32, err error)
+	Dial(vhost string, vport uint32) (net.Conn, error)
 
 	SetLabel(label string) error
 

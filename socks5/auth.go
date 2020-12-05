@@ -97,13 +97,33 @@ func (auth *authPswd) Next(reader io.Reader) (io.WriterTo, bool, error) {
 }
 
 func (auth *authPswd) WriteTo(w io.Writer) (int64, error) {
-	posPswd := 1 + len(auth.username)
-	buf := make([]byte, posPswd+1+len(auth.password))
+
+	// https://tools.ietf.org/html/rfc1929
+	//
+	// +----+------+----------+------+----------+
+	// |VER | ULEN |  UNAME   | PLEN |  PASSWD  |
+	// +----+------+----------+------+----------+
+	// | 1  |  1   | 1 to 255 |  1   | 1 to 255 |
+	// +----+------+----------+------+----------+
+
+	bufLen := 1 + 1 + len(auth.username) + 1 + len(auth.password)
+
+	buf := make([]byte, bufLen)
+
+	// VER
 	buf[0] = dataVerPswd
+
+	// ULEN
 	buf[1] = byte(len(auth.username))
+
+	// UNAME
 	end := 2 + len(auth.username)
 	copy(buf[2:end], auth.username)
+
+	// PLEN
 	buf[end] = byte(len(auth.password))
+
+	// PASSWD
 	copy(buf[end+1:], auth.password)
 
 	written, err := w.Write(buf)

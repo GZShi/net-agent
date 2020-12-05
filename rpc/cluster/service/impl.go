@@ -2,7 +2,10 @@ package service
 
 import (
 	"errors"
+	"net"
+	"time"
 
+	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/rpc/cluster/def"
 	"github.com/GZShi/net-agent/rpc/dial"
 	"github.com/GZShi/net-agent/tunnel"
@@ -22,13 +25,70 @@ func New(t tunnel.Tunnel) def.Cluster {
 	}
 }
 
+type tunData struct {
+	t             tunnel.Tunnel
+	tid           def.TID
+	vhost         string
+	lastHeartbeat time.Time
+}
 type impl struct {
 	t   tunnel.Tunnel
 	cls *cluster
+
+	// cache info
+	cache *tunData
 }
 
-func (p *impl) Login() (def.TID, error) {
-	return p.cls.Join(p.t)
+func (p *impl) Heartbeat() error {
+	if p.cache != nil {
+		p.cache.lastHeartbeat = time.Now()
+		return nil
+	}
+	return errors.New("cache tdata not found")
+}
+
+func (p *impl) Login(vhost string) (def.TID, string, error) {
+	d, err := p.cls.Join(p.t, vhost)
+	if err == nil {
+		p.cache = d
+	}
+
+	// start checking heartbeat
+	go func() {
+		tdata := p.cache
+		log.Get().WithField("tdata", tdata).Info("heartbeat run")
+		defer func() {
+			log.Get().WithField("tdata", tdata).Info("heartbeat stopped")
+		}()
+
+		for {
+			d := p.cache
+			if d == nil {
+				return
+			}
+			<-time.After(time.Second * 10)
+			now := time.Now()
+			if now.Sub(d.lastHeartbeat) > time.Second*10 {
+				p.Logout()
+				return
+			}
+		}
+	}()
+
+	return d.tid, d.vhost, err
+}
+
+func (p *impl) Logout() error {
+	tdata := p.cache
+	if tdata == nil {
+		return errors.New("you need login first")
+	}
+
+	log.Get().WithField("tdata", tdata).Info("logout")
+
+	p.cache = nil
+	p.cls.Detach(p.t)
+	return nil
 }
 
 func (p *impl) DialByTID(tid def.TID, writeSID uint32, network, address string) (readSID uint32, err error) {
@@ -54,8 +114,16 @@ func (p *impl) DialByTID(tid def.TID, writeSID uint32, network, address string) 
 	return sid, nil
 }
 
-func (p *impl) Logout() error {
-	return errNotImplement
+func (p *impl) Dial(vhost string, vport uint32) (net.Conn, error) {
+	tid, err := p.cls.Lookup(vhost)
+	if err != nil {
+		return nil, err
+	}
+	target, err := p.cls.FindTunnelByID(tid)
+	if err != nil {
+		return nil, err
+	}
+	return target.Dial(vport)
 }
 
 func (p *impl) SetLabel(label string) error {

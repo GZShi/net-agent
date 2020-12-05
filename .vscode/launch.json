@@ -5,6 +5,24 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Debug bin/agent",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/bin/agent",
+      "env": {},
+      "args": []
+    },
+    {
+      "name": "Debug bin/server",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/bin/server",
+      "env": {},
+      "args": []
+    },
+    {
       "name": "Debug Tunnel/Sample:Server",
       "type": "go",
       "request": "launch",

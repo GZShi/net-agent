@@ -1,9 +1,11 @@
 package tunnel
 
 import (
+	"errors"
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // Tunnel 通道协议
@@ -17,6 +19,7 @@ type Tunnel interface {
 	FindStreamBySID(uint32) (Stream, error)
 	SendJSON(Context, string, interface{}, interface{}) error
 	SendText(Context, string, string) (string, error)
+	Ping() error
 
 	// net interface
 	Listen(virtualPort uint32) (net.Listener, error)
@@ -28,6 +31,7 @@ func New(conn net.Conn) Tunnel {
 	return &tunnel{
 		idSequece: 1,
 		_conn:     conn,
+		pongChan:  make(chan int, 5),
 	}
 }
 
@@ -44,6 +48,7 @@ type tunnel struct {
 
 	readyFunc    func(t Tunnel)
 	acceptGuards sync.Map
+	pongChan     chan int
 }
 
 type frameGuard struct {
@@ -75,19 +80,49 @@ func (t *tunnel) Run() error {
 		if err != nil {
 			return err
 		}
-		switch frame.Type {
-		case FrameRequest:
-			go t.onRequest(frame)
-		case FrameResponseOK, FrameResponseErr:
-			go t.onResponse(frame)
-		case FrameStreamData:
+		if frame.Type == FrameStreamData {
 			t.onStreamData(frame)
-		case FrameDialRequest:
-			go t.onDial(frame)
-		case FrameDialResponse:
-			go t.onDialResponse(frame)
+		} else {
+			go func(f *Frame) {
+				switch f.Type {
+				case FrameRequest:
+					t.onRequest(f)
+				case FrameResponseOK, FrameResponseErr:
+					t.onResponse(f)
+				case FrameDialRequest:
+					t.onDial(f)
+				case FrameDialResponse:
+					t.onDialResponse(f)
+				case FramePing:
+					resp := t.NewFrame(FramePong)
+					w := t.NewWriteCloser()
+					resp.WriteTo(w)
+					w.Close()
+				case FramePong:
+					t.pongChan <- 0
+				}
+			}(frame)
 		}
 	}
+}
+
+func (t *tunnel) Ping() error {
+	req := t.NewFrame(FramePing)
+	w := t.NewWriteCloser()
+	_, err := req.WriteTo(w)
+	w.Close()
+
+	if err != nil {
+		return err
+	}
+
+	select {
+	case <-t.pongChan:
+	case <-time.After(time.Second * 3):
+		return errors.New("wait pong timeout")
+	}
+
+	return nil
 }
 
 func (t *tunnel) Stop() error {

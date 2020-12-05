@@ -7,7 +7,7 @@ import (
 )
 
 // Requester 解析客户端命令的函数
-type Requester func(Request) (net.Conn, error)
+type Requester func(req Request, ctx map[string]string) (net.Conn, error)
 
 // AuthPswdFunc 认证账号密码
 type AuthPswdFunc func(username, password string) error
@@ -73,10 +73,12 @@ func (s *server) ListenAndRun(addr string) error {
 func (s *server) serve(conn net.Conn) error {
 	defer conn.Close()
 
+	ctx := make(map[string]string)
+
 	//
 	// 使用checker协议进行握手和身份校验
 	//
-	resp, next, err := s.checker.Start(conn)
+	resp, next, err := s.checker.Start(conn, ctx)
 	if err != nil {
 		return err
 	}
@@ -86,7 +88,7 @@ func (s *server) serve(conn net.Conn) error {
 	}
 
 	for next {
-		resp, next, err = s.checker.Next(conn)
+		resp, next, err = s.checker.Next(conn, ctx)
 		if err != nil {
 			return err
 		}
@@ -102,20 +104,42 @@ func (s *server) serve(conn net.Conn) error {
 		return err
 	}
 
-	target, err := s.requester(&req)
-	if err != nil {
-		return err
+	target, respErr := s.requester(&req, ctx)
+	respCode := repSuccess
+	if respErr != nil {
+		respCode = repFailure
+		switch respErr {
+		case ReplyErrConnectionNotAllow:
+			respCode = repConnectionNotAllow
+		case ReplyErrNetworkUnRereachable:
+			respCode = repNetworkUnRereachable
+		case ReplyErrHostUnreachable:
+			respCode = repHostUnreachable
+		case ReplyErrConnectionRefused:
+			respCode = repConnectionRefused
+		case ReplyErrTTLExpired:
+			respCode = repTTLExpired
+		case ReplyErrCmdNotSupported:
+			respCode = repCmdNotSupported
+		case ReplyErrAtypeNotSupported:
+			respCode = repAtypeNotSupported
+		}
 	}
 
 	// 根据RFC1928，request与reply有相似结构
 	var reply request
 	reply.version = dataVersion
-	reply.command = 0 // success
+	reply.command = respCode // success
 	reply.addressType = IPv4
 	reply.addressBuf = make([]byte, net.IPv4len)
 	reply.port = 0
 
 	_, err = reply.WriteTo(conn)
+
+	if respErr != nil {
+		return respErr
+	}
+
 	if err != nil {
 		return err
 	}

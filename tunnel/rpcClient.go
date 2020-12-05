@@ -71,13 +71,20 @@ func (t *tunnel) call(ctxChunk Context, cmd string, dataType uint8, data []byte)
 
 // SendJSON 向对端以JSON方式请求数据
 func (t *tunnel) SendJSON(ctxChunk Context, cmd string, in interface{}, out interface{}) error {
-	payload, err := json.Marshal(in)
-	if err != nil {
-		return err
+	var payload []byte
+	var err error
+	if in != nil {
+		payload, err = json.Marshal(in)
+		if err != nil {
+			return err
+		}
 	}
 	respData, err := t.call(ctxChunk, cmd, JSONData, payload)
 	if err != nil {
 		return err
+	}
+	if out == nil {
+		return nil
 	}
 	return json.Unmarshal(respData, out)
 }

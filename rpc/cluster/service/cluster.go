@@ -9,10 +9,13 @@ import (
 
 	"github.com/GZShi/net-agent/rpc/cluster/def"
 	"github.com/GZShi/net-agent/tunnel"
+	"github.com/GZShi/net-agent/utils"
 )
 
 type cluster struct {
-	ids map[def.TID]tunnel.Tunnel
+	tdata  sync.Map // map[tunnel.Tunnel]*tunData
+	ids    sync.Map // map[def.TID]tunnel.Tunnel
+	vhosts sync.Map // map[string]def.TID
 
 	labelMap map[string]*tlist
 
@@ -35,7 +38,6 @@ func getCluster() *cluster {
 func newCluster() *cluster {
 	return &cluster{
 		idSequence: 1,
-		ids:        make(map[def.TID]tunnel.Tunnel),
 		labelMap:   make(map[string]*tlist),
 	}
 }
@@ -44,36 +46,79 @@ func (ts *cluster) NextTID() def.TID {
 	return def.TID(atomic.AddUint32(&ts.idSequence, 1))
 }
 
-func (ts *cluster) Join(t tunnel.Tunnel) (def.TID, error) {
-	ts.mut.Lock()
-	defer ts.mut.Unlock()
-
-	id := ts.NextTID()
-	ts.ids[id] = t
-
-	return id, nil
+func (ts *cluster) Lookup(vhost string) (def.TID, error) {
+	if !strings.HasSuffix(vhost, ".tunnel") {
+		return 0, errors.New("can't resolve vhost: " + vhost)
+	}
+	val, found := ts.vhosts.Load(vhost[:len(vhost)-7])
+	if !found {
+		return 0, errors.New("vhost record not found: " + vhost)
+	}
+	d := val.(*tunData)
+	return d.tid, nil
 }
 
-func (ts *cluster) Detach(tid def.TID) {
-	ts.mut.Lock()
-	defer ts.mut.Unlock()
+func (ts *cluster) Join(t tunnel.Tunnel, vhost string) (*tunData, error) {
 
-	delete(ts.ids, tid)
-}
-
-func (ts *cluster) findByID(id def.TID) (tunnel.Tunnel, error) {
-	t, found := ts.ids[id]
-	if found {
-		return t, nil
+	if len(vhost) < 4 {
+		return nil, errors.New("vhost too short")
 	}
 
-	return nil, fmt.Errorf("tid=%v not found", id)
+	// 第一步，判断是否已经存在
+	d := &tunData{
+		t:   t,
+		tid: ts.NextTID(),
+	}
+	_, loaded := ts.tdata.LoadOrStore(t, d)
+	if loaded {
+		return nil, errors.New("tunnel repeat login")
+	}
+
+	ts.ids.Store(d.tid, d)
+
+	// bind vhost to tunData
+	// todo: 优化性能
+	val, loaded := ts.vhosts.LoadOrStore(vhost, d)
+	for loaded {
+		existData := val.(*tunData)
+		if existData.t == nil {
+			existData.vhost = "" // 要置为空，否则close时会误删tid和tunData的绑定
+			ts.vhosts.Store(vhost, d)
+			break
+		}
+
+		err := existData.t.Ping()
+		if err != nil {
+			existData.vhost = "" // 要置为空，否则close时会误删tid和tunData的绑定
+			ts.vhosts.Store(vhost, d)
+			break
+		}
+
+		vhost = utils.NextNameStr(vhost)
+		val, loaded = ts.vhosts.LoadOrStore(vhost, d)
+	}
+	d.vhost = vhost
+
+	return d, nil
+}
+
+func (ts *cluster) Detach(t tunnel.Tunnel) {
+	val, loaded := ts.tdata.LoadAndDelete(t)
+	if !loaded {
+		return
+	}
+	d := val.(*tunData)
+	ts.ids.Delete(d.tid)
+	ts.vhosts.Delete(d.vhost)
 }
 
 func (ts *cluster) FindTunnelByID(tid def.TID) (tunnel.Tunnel, error) {
-	ts.mut.RLock()
-	defer ts.mut.RUnlock()
-	return ts.findByID(tid)
+	val, found := ts.ids.Load(tid)
+	if found {
+		return val.(*tunData).t, nil
+	}
+
+	return nil, fmt.Errorf("tid=%v not found", tid)
 }
 
 func (ts *cluster) findByLabel(label string) (*tlist, error) {
