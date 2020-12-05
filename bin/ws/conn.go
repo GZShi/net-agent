@@ -74,8 +74,9 @@ func (p *Conn) Read(b []byte) (int, error) {
 			p.Close()
 			return 0, p.currBuf.err
 		}
-		frame = p.currBuf
 	}
+	frame = p.currBuf
+
 	remainSize := len(frame.data) - frame.pos
 	if len(b) < remainSize {
 		copy(b, frame.data[frame.pos:frame.pos+len(b)])
