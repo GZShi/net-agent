@@ -30,7 +30,6 @@ func (c *client) SetPrefix(prefix string) {
 // NewService 创建rpc服务
 //
 func NewService() tunnel.Service {
-	service.New(nil)
 	return &svc{"dial", nil, nil}
 }
 

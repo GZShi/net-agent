@@ -50,6 +50,7 @@ func (l *tlist) Remove(tid def.TID) {
 	}
 }
 
+// Select 从tunnels中按照一定规则选择其中一个（目前为轮询）
 func (l *tlist) Select() (def.TID, error) {
 	l.mut.RLock()
 	defer l.mut.RUnlock()
