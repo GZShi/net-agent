@@ -8,6 +8,7 @@ import (
 	"github.com/GZShi/net-agent/bin/common"
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/rpc/cluster"
+	"github.com/GZShi/net-agent/rpc/msgclient"
 	"github.com/GZShi/net-agent/tunnel"
 	"github.com/GZShi/net-agent/utils"
 )
@@ -53,8 +54,10 @@ func connectAndWork(cfg *common.Config) {
 		return
 	}
 
-	cls := cluster.NewClient(t, nil)
+	// 在客户端运行推送客户端服务，用于处理远端推送消息
+	t.BindServices(msgclient.NewService())
 
+	cls := cluster.NewClient(t, nil)
 	svcClosers := []io.Closer{}
 
 	t.Ready(func(t tunnel.Tunnel) {
