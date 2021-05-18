@@ -49,6 +49,7 @@ func (s *svc) Hello(t tunnel.Tunnel) error {
 }
 
 func (s *svc) Exec(ctx tunnel.Context) error {
+	// fmt.Printf("new request: %v\n", ctx.GetCmd())
 	switch ctx.GetMethod() {
 	case "Login":
 		s.Login(ctx)
@@ -64,6 +65,9 @@ func (s *svc) Exec(ctx tunnel.Context) error {
 		return nil
 	case "Dial":
 		s.Dial(ctx)
+		return nil
+	case "SendGroupMessage":
+		s.SendGroupMessage(ctx)
 		return nil
 	}
 	return fmt.Errorf("route failed: '%v' not found in '%v'", ctx.GetMethod(), ctx.GetService())

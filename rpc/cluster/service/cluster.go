@@ -6,16 +6,18 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/GZShi/net-agent/rpc/cluster/def"
+	"github.com/GZShi/net-agent/rpc/msgclient"
 	"github.com/GZShi/net-agent/tunnel"
 	"github.com/GZShi/net-agent/utils"
 )
 
 type cluster struct {
-	tdata  sync.Map // map[tunnel.Tunnel]*tunData
-	ids    sync.Map // map[def.TID]tunnel.Tunnel
-	vhosts sync.Map // map[string]def.TID
+	tunnelMapCtx sync.Map // map[tunnel.Tunnel]*connContext
+	tidMapCtx    sync.Map // map[def.TID]*connContext
+	vhostMapCtx  sync.Map // map[string]*connContext
 
 	labelMap map[string]*tlist
 
@@ -23,15 +25,15 @@ type cluster struct {
 	idSequence uint32
 }
 
-var instance *cluster
-var onceInit sync.Once
+var clusterInstance *cluster
+var onceClusterInit sync.Once
 
 // getCluster 单例模式
 func getCluster() *cluster {
-	onceInit.Do(func() {
-		instance = newCluster()
+	onceClusterInit.Do(func() {
+		clusterInstance = newCluster()
 	})
-	return instance
+	return clusterInstance
 }
 
 // newCluster 创建新的tunnel集群管理服务
@@ -50,72 +52,75 @@ func (ts *cluster) Lookup(vhost string) (def.TID, error) {
 	if !strings.HasSuffix(vhost, ".tunnel") {
 		return 0, errors.New("can't resolve vhost: " + vhost)
 	}
-	val, found := ts.vhosts.Load(vhost[:len(vhost)-7])
+	val, found := ts.vhostMapCtx.Load(vhost[:len(vhost)-7])
 	if !found {
 		return 0, errors.New("vhost record not found: " + vhost)
 	}
-	d := val.(*tunData)
+	d := val.(*connectContext)
 	return d.tid, nil
 }
 
-func (ts *cluster) Join(t tunnel.Tunnel, vhost string) (*tunData, error) {
+func (ts *cluster) Join(t tunnel.Tunnel, vhost string) (*connectContext, error) {
 
 	if len(vhost) < 4 {
 		return nil, errors.New("vhost too short")
 	}
 
 	// 第一步，判断是否已经存在
-	d := &tunData{
-		t:   t,
-		tid: ts.NextTID(),
+	ctx := &connectContext{
+		t:             t,
+		tid:           ts.NextTID(),
+		msgClient:     msgclient.NewClient(t, nil),
+		connectTime:   time.Now(),
+		lastHeartbeat: time.Now(),
 	}
-	_, loaded := ts.tdata.LoadOrStore(t, d)
+	_, loaded := ts.tunnelMapCtx.LoadOrStore(t, ctx)
 	if loaded {
 		return nil, errors.New("tunnel repeat login")
 	}
 
-	ts.ids.Store(d.tid, d)
+	ts.tidMapCtx.Store(ctx.tid, ctx)
 
 	// bind vhost to tunData
 	// todo: 优化性能
-	val, loaded := ts.vhosts.LoadOrStore(vhost, d)
+	val, loaded := ts.vhostMapCtx.LoadOrStore(vhost, ctx)
 	for loaded {
-		existData := val.(*tunData)
-		if existData.t == nil {
-			existData.vhost = "" // 要置为空，否则close时会误删tid和tunData的绑定
-			ts.vhosts.Store(vhost, d)
+		existCtx := val.(*connectContext)
+		if existCtx.t == nil {
+			existCtx.vhost = "" // 要置为空，否则close时会误删tid和tunData的绑定
+			ts.vhostMapCtx.Store(vhost, ctx)
 			break
 		}
 
-		err := existData.t.Ping()
+		err := existCtx.t.Ping()
 		if err != nil {
-			existData.vhost = "" // 要置为空，否则close时会误删tid和tunData的绑定
-			ts.vhosts.Store(vhost, d)
+			existCtx.vhost = "" // 要置为空，否则close时会误删tid和tunData的绑定
+			ts.vhostMapCtx.Store(vhost, ctx)
 			break
 		}
 
 		vhost = utils.NextNameStr(vhost)
-		val, loaded = ts.vhosts.LoadOrStore(vhost, d)
+		val, loaded = ts.vhostMapCtx.LoadOrStore(vhost, ctx)
 	}
-	d.vhost = vhost
+	ctx.vhost = vhost
 
-	return d, nil
+	return ctx, nil
 }
 
 func (ts *cluster) Detach(t tunnel.Tunnel) {
-	val, loaded := ts.tdata.LoadAndDelete(t)
+	val, loaded := ts.tunnelMapCtx.LoadAndDelete(t)
 	if !loaded {
 		return
 	}
-	d := val.(*tunData)
-	ts.ids.Delete(d.tid)
-	ts.vhosts.Delete(d.vhost)
+	d := val.(*connectContext)
+	ts.tidMapCtx.Delete(d.tid)
+	ts.vhostMapCtx.Delete(d.vhost)
 }
 
 func (ts *cluster) FindTunnelByID(tid def.TID) (tunnel.Tunnel, error) {
-	val, found := ts.ids.Load(tid)
+	val, found := ts.tidMapCtx.Load(tid)
 	if found {
-		return val.(*tunData).t, nil
+		return val.(*connectContext).t, nil
 	}
 
 	return nil, fmt.Errorf("tid=%v not found", tid)
@@ -170,4 +175,25 @@ func (ts *cluster) RemoveLabels(tid def.TID, labels []string) error {
 	}
 
 	return nil
+}
+
+// 向所有在线链接派发推送消息
+func (ts *cluster) DispatchGMToAll(m *msg) {
+	// 找到所有的MsgClients
+	ts.vhostMapCtx.Range(func(k, v interface{}) bool {
+		msgc := v.(*connectContext).msgClient
+		msgc.PushGroupMessage(m.SenderVhost, m.GroupID, m.Message, m.MsgType)
+		return true
+	})
+}
+
+// 向指定vhosts派发推送消息
+func (ts *cluster) DispatchGMToVhosts(m *msg, vhosts []string) {
+	for _, vhost := range vhosts {
+		ctx, found := ts.vhostMapCtx.Load(vhost)
+		if !found {
+			continue
+		}
+		ctx.(*connectContext).msgClient.PushGroupMessage(m.SenderVhost, m.GroupID, m.Message, m.MsgType)
+	}
 }

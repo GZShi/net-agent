@@ -2,12 +2,14 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"time"
 
 	log "github.com/GZShi/net-agent/logger"
 	"github.com/GZShi/net-agent/rpc/cluster/def"
 	"github.com/GZShi/net-agent/rpc/dial"
+	msgclientdef "github.com/GZShi/net-agent/rpc/msgclient/def"
 	"github.com/GZShi/net-agent/tunnel"
 	"github.com/GZShi/net-agent/utils"
 )
@@ -22,47 +24,61 @@ func New(t tunnel.Tunnel) def.Cluster {
 	return &impl{
 		t:   t,
 		cls: getCluster(),
+		mc:  getMsgCenter(),
 	}
 }
 
-type tunData struct {
+// connectContext 当客户端调用cluster.Login成功后，生成上下文信息
+type connectContext struct {
 	t             tunnel.Tunnel
 	tid           def.TID
 	vhost         string
+	msgClient     msgclientdef.MsgClient
+	connectTime   time.Time
 	lastHeartbeat time.Time
 }
+
+func (ctx *connectContext) String() string {
+	beatGap := time.Since(ctx.lastHeartbeat).Round(time.Millisecond)
+	alive := time.Since(ctx.connectTime).Round(time.Second)
+	return fmt.Sprintf("%v(%v) beat_gap=%v alive=%v", ctx.vhost, ctx.tid, beatGap, alive)
+}
+
 type impl struct {
-	t   tunnel.Tunnel
+	t   tunnel.Tunnel // 这个Tunnel是发起请求的通道，相当于客户端应用
 	cls *cluster
 
-	// cache info
-	cache *tunData
+	// connCtx info
+	connCtx *connectContext
+
+	// msg center for chat
+	mc *msgCenter
 }
 
 func (p *impl) Heartbeat() error {
-	if p.cache != nil {
-		p.cache.lastHeartbeat = time.Now()
+	if p.connCtx != nil {
+		p.connCtx.lastHeartbeat = time.Now()
 		return nil
 	}
-	return errors.New("cache tdata not found")
+	return errors.New("cache ctx not found")
 }
 
 func (p *impl) Login(vhost string) (def.TID, string, error) {
 	d, err := p.cls.Join(p.t, vhost)
 	if err == nil {
-		p.cache = d
+		p.connCtx = d
 	}
 
 	// start checking heartbeat
 	go func() {
-		tdata := p.cache
-		log.Get().WithField("tdata", tdata).Info("heartbeat run")
+		ctx := p.connCtx
+		log.Get().WithField("ctx", ctx).Info("heartbeat run")
 		defer func() {
-			log.Get().WithField("tdata", tdata).Info("heartbeat stopped")
+			log.Get().WithField("ctx", ctx).Info("heartbeat stopped")
 		}()
 
 		for {
-			d := p.cache
+			d := p.connCtx
 			if d == nil {
 				return
 			}
@@ -79,14 +95,14 @@ func (p *impl) Login(vhost string) (def.TID, string, error) {
 }
 
 func (p *impl) Logout() error {
-	tdata := p.cache
-	if tdata == nil {
+	ctx := p.connCtx
+	if ctx == nil {
 		return errors.New("you need login first")
 	}
 
-	log.Get().WithField("tdata", tdata).Info("logout")
+	log.Get().WithField("ctx", ctx).Info("logout")
 
-	p.cache = nil
+	p.connCtx = nil
 	p.cls.Detach(p.t)
 	return nil
 }
@@ -142,6 +158,16 @@ func (p *impl) LeaveGroup(groupID uint32) error {
 	return errNotImplement
 }
 
+// SendGroupMessage 处理客户端向某个群组发送消息的请求
 func (p *impl) SendGroupMessage(groupID uint32, message string, msgType int) error {
-	return errNotImplement
+	return p.mc.PushMessage(&msg{
+		// 从可信区域获取数据
+		SenderVhost: p.connCtx.vhost, // 直接从连接上下文中获取vhost信息
+		Date:        time.Now(),
+
+		// 登记客户端送上来的信息
+		GroupID: groupID,
+		Message: message,
+		MsgType: msgType,
+	})
 }
