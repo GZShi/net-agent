@@ -1,8 +1,6 @@
 package cluster
 
 import (
-	"fmt"
-
 	"github.com/GZShi/net-agent/tunnel"
 )
 
@@ -26,6 +24,7 @@ func (s *svc) SendGroupMessage(ctx tunnel.Context) {
 		ctx.Error(err)
 		return
 	}
+	ctx.JSON(nil)
 }
 
 // SendGroupMessage 客户端发送消息接口
@@ -37,8 +36,5 @@ func (c *client) SendGroupMessage(groupID uint32, message string, msgType int) e
 			groupID, message, msgType,
 		},
 		nil)
-	if err != nil {
-		fmt.Printf("SendGroupMessage error: %v\n", err)
-	}
 	return err
 }

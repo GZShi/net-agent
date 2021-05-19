@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatBoard</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      display: flex;
+      flex-direction: row;
+      height: 100vh;
+      overflow: auto;
+    }
+    .left {
+      width: 500px;
+      background-color: #ddd;
+      padding: 10px;
+    }
+    .right {
+      flex: 1;
+      padding: 10px;
+      font-size: 12px;
+      max-height: 100%;
+      overflow: auto;
+      background-color: rgb(245,245,245);
+    }
+    .form-line {
+      margin-bottom: 1em;
+    }
+    .block-input {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .chat-bubble {
+      margin: 10px;
+    }
+    .chat-bubble.self {
+      text-align: right;
+    }
+    .chat-bubble .meta {
+      font-size: 12px;
+      color: #ddd;
+      line-height: 16px;
+      margin-bottom: 5px;
+    }
+    .chat-bubble .content {
+      text-align: left;
+      display: inline-block;
+      max-width: 80%;
+      font-size: 14px;
+      padding: .4em .8em;
+      border-radius: 4px;
+      border: 1px solid #e6e6e6;
+      background-color: white;
+      color: #333;
+    }
+    .chat-bubble.self .content {
+      background-color: #a1ee6d;
+      border-color: #a1ee6d;
+    }
+    .chat-bubble .content pre {
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="left">
+      <h3>API test</h3>
+      <div class="form-line">
+        <label for="group-id">聊天室编号</label>
+        <input class="block-input" id="group-id" type="number" placeholder="整型数字" value="0">
+      </div>
+      <div class="form-line">
+        <label for="message-type">内容类型</label>
+        <select class="block-input" name="" id="message-type">
+          <option value="0">文本</option>
+          <option value="1">图片</option>
+          <option value="2">语音</option>
+        </select>
+      </div>
+      <div class="form-line">
+        <label for="message">内容</label>
+        <textarea class="block-input" name="" id="message" cols="30" rows="10">推送测试消息~~yoo~</textarea>
+      </div>
+      <button id="send-btn">发送消息</button>
+      <span id="state"></span>
+    </div>
+  
+    <div class="right">
+      <!-- bubble containers -->
+      <div>all message is here: </div>
+      <div id="msg-containers"></div>
+    </div>
+  </div>
+  <script>
+    ;(async function main() {
+      document.querySelector('button#send-btn').addEventListener('click', sendGroupMessage)
+    })()
+
+    function setState(val, color='gray') {
+      let el = document.querySelector('span#state')
+      el.innerText = val
+      el.style.color = color
+    }
+    async function sendGroupMessage() {
+      let groupID = parseInt(document.querySelector('input#group-id').value, 10)
+      let msgType = parseInt(document.querySelector('select#message-type').value, 10)
+      let message = document.querySelector('textarea#message').value
+      
+      setState('发送中…')
+      try {
+        let body = JSON.stringify({ groupID, msgType, message })
+        await fetch('/new-message', {
+          method: 'POST',
+          body
+        })
+        setState('发送成功', 'green')
+      } catch (ex) {
+        setState('发送失败', 'red')
+      }
+    }
+    function appendMessage({senderType, sender, groupID, message, msgType}) {
+      let c = document.createElement('div')
+      c.classList.add('chat-bubble')
+      c.innerHTML = `
+        <div class="meta">${senderType}:${sender}|group:${groupID}|type:${msgType}</div>
+        <div><div class="content"><pre>${message}</pre></div></div>
+      `
+      document.querySelector('#msg-containers').appendChild(c)
+
+      c.scrollIntoView()
+    }
+  </script>
+  <script src="/chat/ws-chat-client.js"></script>
+</body>
+</html>

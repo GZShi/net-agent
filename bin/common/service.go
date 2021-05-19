@@ -36,6 +36,8 @@ func RunService(t tunnel.Tunnel, cls def.Cluster, index int, info ServiceInfo) (
 		closer, err = RunSocks5Server(t, cls, info.Param, log)
 	case "portproxy":
 		closer, err = RunPortproxy(t, cls, info.Param, log)
+	case "chatserver":
+		closer, err = RunChatServer(t, cls, info.Param, log)
 	default:
 		err = errors.New("unknown service type: " + info.Type)
 	}

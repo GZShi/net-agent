@@ -157,6 +157,10 @@ func (ctx *context) GetText() (string, error) {
 }
 
 func (ctx *context) JSON(v interface{}) {
+	if v == nil {
+		ctx.response(JSONData, nil, nil)
+		return
+	}
 	data, err := json.Marshal(v)
 	ctx.response(JSONData, data, err)
 }

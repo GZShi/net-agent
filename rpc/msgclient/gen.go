@@ -24,7 +24,7 @@ func (c *client) PushGroupMessage(sender string, groupID uint32, message string,
 	)
 }
 
-func (s *svc) PushGroupMessage(ctx tunnel.Context) {
+func (s *MsgClientSvc) PushGroupMessage_(ctx tunnel.Context) {
 	var req stReqPushGM
 	err := ctx.GetJSON(&req)
 	if err != nil {
@@ -32,7 +32,7 @@ func (s *svc) PushGroupMessage(ctx tunnel.Context) {
 		return
 	}
 
-	s.impl.PushGroupMessage(req.Sender, req.GroupID, req.Message, req.MsgType)
+	s.PushMsg("vhost", req.Sender, req.GroupID, req.Message, req.MsgType)
 	ctx.JSON(&stRespPushGM{})
 }
 
@@ -51,7 +51,7 @@ func (c *client) PushSysNotify(groupID uint32, message string, msgType int) {
 		&stRespPushSN{},
 	)
 }
-func (s *svc) PushSysNotify(ctx tunnel.Context) {
+func (s *MsgClientSvc) PushSysNotify_(ctx tunnel.Context) {
 	var req stReqPushSN
 	err := ctx.GetJSON(&req)
 	if err != nil {
@@ -59,6 +59,6 @@ func (s *svc) PushSysNotify(ctx tunnel.Context) {
 		return
 	}
 
-	s.impl.PushSysNotify(req.GroupID, req.Message, req.MsgType)
+	s.PushMsg("system", "notify", req.GroupID, req.Message, req.MsgType)
 	ctx.JSON(&stRespPushSN{})
 }
