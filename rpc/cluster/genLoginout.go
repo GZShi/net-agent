@@ -5,6 +5,7 @@ import (
 	"github.com/GZShi/net-agent/tunnel"
 )
 
+///////////////////
 type stReqLogin struct {
 	Vhost string `json:"vhost"`
 }
@@ -38,6 +39,8 @@ func (s *svc) Login(ctx tunnel.Context) {
 	ctx.JSON(&stRespLogin{tid, vhost})
 }
 
+///////////////////////
+
 func (c *client) Logout() error {
 	return c.t.SendJSON(c.ctx,
 		tunnel.JoinServiceMethod(c.prefix, "Logout"), nil, nil)
@@ -46,4 +49,27 @@ func (c *client) Logout() error {
 func (s *svc) Logout(ctx tunnel.Context) {
 	s.impl.Logout()
 	ctx.JSON(nil)
+}
+
+///////////////////////
+
+type stRespGetCtxInfo struct {
+	CtxInfo def.CtxInfo
+}
+
+func (c *client) GetCtxInfo() (def.CtxInfo, error) {
+	var resp stRespGetCtxInfo
+	err := c.t.SendJSON(c.ctx,
+		tunnel.JoinServiceMethod(c.prefix, "GetCtxInfo"), nil, &resp,
+	)
+	return resp.CtxInfo, err
+}
+
+func (s *svc) GetCtxInfo(ctx tunnel.Context) {
+	info, err := s.impl.GetCtxInfo()
+	if err != nil {
+		ctx.Error(err)
+		return
+	}
+	ctx.JSON(&stRespGetCtxInfo{info})
 }

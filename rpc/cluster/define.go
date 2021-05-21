@@ -60,6 +60,9 @@ func (s *svc) Exec(ctx tunnel.Context) error {
 	case "Heartbeat":
 		s.Heartbeat(ctx)
 		return nil
+	case "GetCtxInfo":
+		s.GetCtxInfo(ctx)
+		return nil
 	case "DialByTID":
 		s.DialByTID(ctx)
 		return nil
@@ -68,6 +71,9 @@ func (s *svc) Exec(ctx tunnel.Context) error {
 		return nil
 	case "SendGroupMessage":
 		s.SendGroupMessage(ctx)
+		return nil
+	case "GetGroupMessages":
+		s.GetGroupMessages(ctx)
 		return nil
 	}
 	return fmt.Errorf("route failed: '%v' not found in '%v'", ctx.GetMethod(), ctx.GetService())

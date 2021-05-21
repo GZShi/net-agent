@@ -107,6 +107,19 @@ func (p *impl) Logout() error {
 	return nil
 }
 
+func (p *impl) GetCtxInfo() (def.CtxInfo, error) {
+	var info def.CtxInfo
+	ctx := p.connCtx
+	if ctx == nil {
+		return info, errors.New("you need login first")
+	}
+
+	// ctx信息返回
+	info.VHost = ctx.vhost
+
+	return info, nil
+}
+
 func (p *impl) DialByTID(tid def.TID, writeSID uint32, network, address string) (readSID uint32, err error) {
 	target, err := p.cls.FindTunnelByID(tid)
 	if err != nil {
@@ -160,7 +173,11 @@ func (p *impl) LeaveGroup(groupID uint32) error {
 
 // SendGroupMessage 处理客户端向某个群组发送消息的请求
 func (p *impl) SendGroupMessage(groupID uint32, message string, msgType int) error {
-	return p.mc.PushMessage(&msg{
+	group, err := p.mc.GetGroupByID(groupID)
+	if err != nil {
+		return err
+	}
+	return group.PushMessage(&msg{
 		// 从可信区域获取数据
 		SenderVhost: p.connCtx.vhost, // 直接从连接上下文中获取vhost信息
 		Date:        time.Now(),
@@ -170,4 +187,34 @@ func (p *impl) SendGroupMessage(groupID uint32, message string, msgType int) err
 		Message: message,
 		MsgType: msgType,
 	})
+}
+
+// GetGroupMessages 获取群组消息
+func (p *impl) GetGroupMessages(groupIDs []uint32, startTime time.Time, limit int) ([]def.Message, error) {
+	retMessages := []def.Message{}
+	for _, id := range groupIDs {
+		// 判断是否能找到组群
+		group, err := p.mc.GetGroupByID(id)
+		if err != nil {
+			continue
+		}
+		// 判断是否为组群成员，如果不是，则无法获取组群消息
+		if !group.IsMember(p.connCtx.vhost) {
+			continue
+		}
+		msgs, err := group.GetMessages(startTime, limit)
+		if err != nil {
+			continue
+		}
+		for _, msg := range msgs {
+			retMessages = append(retMessages, def.Message{
+				GroupID: group.groupID,
+				Sender:  msg.SenderVhost,
+				Date:    msg.Date,
+				Type:    msg.MsgType,
+				Content: msg.Message,
+			})
+		}
+	}
+	return retMessages, nil
 }

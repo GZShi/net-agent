@@ -50,23 +50,6 @@ func (mc *msgCenter) GetGroupByID(id uint32) (group *msgGroup, err error) {
 	return g, nil
 }
 
-func (mc *msgCenter) PushMessage(m *msg) error {
-	g, err := mc.GetGroupByID(m.GroupID)
-	if err != nil {
-		return err
-	}
-	return g.PushMessage(m)
-}
-
-func (mc *msgCenter) GetMessages(groupID uint32) ([]*msg, error) {
-	g, err := mc.GetGroupByID(groupID)
-	if err != nil {
-		return nil, err
-	}
-
-	return g.GetMessages()
-}
-
 //
 // messages
 //
@@ -90,7 +73,23 @@ type msgGroup struct {
 	listMut sync.RWMutex
 	list    []*msg
 
-	members sync.Map
+	members sync.Map // map[vhost:string]*memberInfo
+}
+
+func (g *msgGroup) IsMember(vhost string) bool {
+	if g.groupID == 0 {
+		return true
+	}
+	_, found := g.members.Load(vhost)
+	return found
+}
+
+func (g *msgGroup) GetMemberInfo(vhost string) (info *memberInfo, found bool) {
+	val, found := g.members.Load(vhost)
+	if !found {
+		return nil, false
+	}
+	return val.(*memberInfo), true
 }
 
 // PushMessage 往群里发送消息
@@ -126,13 +125,45 @@ func (g *msgGroup) PushMessage(m *msg) error {
 }
 
 // GetMessage 获取群里消息
-func (g *msgGroup) GetMessages() ([]*msg, error) {
+func (g *msgGroup) GetMessages(startTime time.Time, limit int) ([]*msg, error) {
 	g.listMut.RLock()
-	defer g.listMut.RUnlock()
-	if len(g.list) > 100 {
-		return g.list[len(g.list)-100:], nil
+	msgs := g.list[:] // copy slice
+	g.listMut.RUnlock()
+
+	// 如果当前消息列表为空，则直接返回，不做多余判断
+	if len(msgs) == 0 {
+		return msgs, nil
 	}
-	return g.list, nil
+
+	// 如果当前消息列表长度大于limit，则优先截短
+	if len(msgs) > limit {
+		msgs = msgs[len(msgs)-limit:]
+	}
+
+	// 如果第一条消息已经是startTime之后，则后面消息不用再判断时间，全部返回
+	if msgs[0].Date.After(startTime) {
+		return msgs, nil
+	}
+	if msgs[len(msgs)-1].Date.Before(startTime) {
+		return nil, nil
+	}
+
+	// 根据利用二分法，找到大于startTime的记录
+	mid := 0
+	start := 0
+	end := len(msgs)
+	for start < end {
+		mid = (start + end) >> 1
+		if msgs[mid].Date.Before(startTime) {
+			start = mid + 1
+		} else if msgs[mid].Date.After(startTime) {
+			end = mid
+		} else {
+			break
+		}
+	}
+
+	return msgs[mid:], nil
 }
 
 // Join 加入群
