@@ -117,7 +117,7 @@
       setState('发送中…')
       try {
         let body = JSON.stringify({ groupID, msgType, message })
-        await fetch('/new-message', {
+        await fetch('/agent-api/new-message', {
           method: 'POST',
           body
         })
