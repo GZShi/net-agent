@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/GZShi/net-agent/logger"
+	log "logger"
 )
 
 // onRequest 基础事件
