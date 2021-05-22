@@ -7,7 +7,7 @@ import (
 	"net"
 	"time"
 
-	log "github.com/GZShi/net-agent/logger"
+	log "logger"
 )
 
 //

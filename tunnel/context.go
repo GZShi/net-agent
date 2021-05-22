@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/GZShi/net-agent/logger"
+	log "logger"
 )
 
 // Context 用于处理RPC请求的上下文对象
@@ -157,6 +157,10 @@ func (ctx *context) GetText() (string, error) {
 }
 
 func (ctx *context) JSON(v interface{}) {
+	if v == nil {
+		ctx.response(JSONData, nil, nil)
+		return
+	}
 	data, err := json.Marshal(v)
 	ctx.response(JSONData, data, err)
 }

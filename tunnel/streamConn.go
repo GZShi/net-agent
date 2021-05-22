@@ -6,14 +6,22 @@ import (
 	"time"
 )
 
+// Network todo:5
+func (s *streamRWC) Network() string {
+	return "tcp4"
+}
+
+// String todo:制定标准
+func (s *streamRWC) String() string {
+	return "127.0.0.1:65535"
+}
+
 func (s *streamRWC) LocalAddr() net.Addr {
-	// todo:5
-	return nil
+	return s
 }
 
 func (s *streamRWC) RemoteAddr() net.Addr {
-	// todo:5
-	return nil
+	return s
 }
 
 func (s *streamRWC) SetDeadline(t time.Time) error {

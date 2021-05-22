@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/GZShi/net-agent/logger"
+	log "logger"
 )
 
 // onRequest 基础事件
@@ -19,7 +19,7 @@ func (t *tunnel) onRequest(req *Frame) {
 	prefix := parts[0]
 
 	if t.serviceMap == nil {
-		ctx.Error(fmt.Errorf("service '%v' not found", prefix))
+		ctx.Error(fmt.Errorf("service map '%v' is nil", cmd))
 		return
 	}
 

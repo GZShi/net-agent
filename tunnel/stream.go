@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/GZShi/net-agent/logger"
+	log "logger"
 )
 
 // Stream 数据通道流
