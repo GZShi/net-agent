@@ -32,6 +32,8 @@
     "enable": true,
     "description": "即时通信服务",
     "type": "chatserver",
-    "param": {}
+    "param": {
+      "listen": "127.0.0.1:2022"
+    }
   }]
 }

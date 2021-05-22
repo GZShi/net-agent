@@ -3,6 +3,7 @@ package common
 import (
 	"io"
 	"net"
+	"path/filepath"
 	"time"
 
 	"github.com/GZShi/net-agent/rpc/cluster/def"
@@ -33,7 +34,22 @@ func RunChatServer(t tunnel.Tunnel, cls def.Cluster, param map[string]string, lo
 
 	log.Debug("chat server init")
 
-	l, err := net.Listen("tcp4", "127.0.0.1:2021")
+	serveAddr := "127.0.0.1:2021"
+	paramListen, found := param["listen"]
+	if found {
+		serveAddr = paramListen
+	}
+
+	sitePath, err := filepath.Abs("./ui-html/site")
+	if err != nil {
+		return nil, err
+	}
+	examplePath, err := filepath.Abs("./ui-html/example")
+	if err != nil {
+		return nil, err
+	}
+
+	l, err := net.Listen("tcp4", serveAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -43,8 +59,8 @@ func RunChatServer(t tunnel.Tunnel, cls def.Cluster, param map[string]string, lo
 	t.BindServices(svc)
 
 	app := iris.New()
-	app.StaticWeb("/example", "./ui-html/example")
-	app.StaticWeb("/site", "./ui-html/site")
+	app.StaticWeb("/example", examplePath)
+	app.StaticWeb("/site", sitePath)
 	app.Get("/say-hello", func(ctx iris.Context) {
 		ctx.Write([]byte("who you are~ ?"))
 	})
