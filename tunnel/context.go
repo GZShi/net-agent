@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	log "logger"
+	log "github.com/GZShi/net-agent/v2/logger"
 )
 
 // Context 用于处理RPC请求的上下文对象

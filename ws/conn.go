@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 
-	log "logger"
+	log "github.com/GZShi/net-agent/v2/logger"
 
 	"github.com/gorilla/websocket"
 )
