@@ -3,7 +3,7 @@ package socks5
 import (
 	"net"
 
-	"utils"
+	"github.com/GZShi/net-agent/utils"
 )
 
 // Requester 解析客户端命令的函数
