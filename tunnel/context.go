@@ -43,14 +43,14 @@ type OnRequestFunc func(Context)
 //
 
 type context struct {
-	tunnel      *tunnel
-	req         *Frame
-	header      map[string]string
-	command     string
-	serviceName string
-	methodName  string
-	caller      []Caller
-	resp        *Frame
+	tunnel      *tunnel           //传输通道
+	req         *Frame            //原始请求帧
+	header      map[string]string //从原始帧解析出的头信息
+	command     string            // 请求的完整路由信息
+	serviceName string            // 从完整路由中解析出的服务名
+	methodName  string            // 从完整路由中解析出的方法名
+	caller      []Caller          // 调用链信息
+	resp        *Frame            // 应答帧信息
 	respChan    chan *Frame
 	respLock    sync.Mutex
 	respClosed  bool

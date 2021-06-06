@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"runtime"
 	"sync"
 	"time"
 
@@ -38,6 +39,7 @@ type streamRWC struct {
 	info           string
 	isStayAlert    bool
 	closeOnce      sync.Once
+	state          *StreamState
 }
 
 // NewStream 根据指定Session创建流式数据通道
@@ -57,7 +59,33 @@ func (t *tunnel) NewStream() (Stream, uint32) {
 	if loaded {
 		panic("unexpceted stream stored")
 	}
+	if t.logStreamState {
+		stream.state = &StreamState{
+			Closed: false,
+			SID:    sid,
+		}
+		stream.state.LogCreated()
+		t.historyLock.Lock()
+		t.historyStreams = append(t.historyStreams, stream)
+		t.historyLock.Unlock()
+	}
 	return stream, sid
+}
+
+func (t *tunnel) GetStreamStates() []StreamState {
+	states := []StreamState{}
+	if !t.logStreamState {
+		return states
+	}
+
+	t.historyLock.RLock()
+	defer t.historyLock.RUnlock()
+
+	for _, stream := range t.historyStreams {
+		states = append(states, *stream.state)
+	}
+
+	return states
 }
 
 func (t *tunnel) FindStreamBySID(sid uint32) (Stream, error) {
@@ -76,13 +104,24 @@ func (stream *streamRWC) Bind(sessionID uint32) error {
 		return errors.New("repeat bind")
 	}
 	stream.writeSessionID = sessionID
+	if stream.state != nil {
+		stream.state.CallerSID = sessionID
+		stream.state.CallerVhost = "unknown"
+	}
 	return nil
 }
 
-func (stream *streamRWC) Read(buf []byte) (int, error) {
+func (stream *streamRWC) Read(buf []byte) (retReaded int, retErr error) {
 	if stream.closed {
 		return 0, errors.New("stream closed")
 	}
+
+	if stream.state != nil {
+		defer func() {
+			stream.state.AddReadLen(retReaded)
+		}()
+	}
+
 	// 处于积压状态时，优先把readChan中的数据消费掉
 	if stream.isStayAlert || stream.readingFrame == nil {
 		var head *Frame
@@ -151,27 +190,52 @@ func (stream *streamRWC) Read(buf []byte) (int, error) {
 	return remainSize, nil
 }
 
-func (stream *streamRWC) Write(buf []byte) (int, error) {
+func (stream *streamRWC) Write(buf []byte) (retWritten int, retErr error) {
 	if stream.closed {
 		return 0, errors.New("stream closed")
 	}
 	if stream.writeSessionID == 0 {
 		return 0, errors.New("write session id is 0")
 	}
-	frame := stream.t.NewFrame(FrameStreamData)
-	frame.SessionID = stream.writeSessionID
-	frame.Data = buf
 
-	wc := stream.t.NewWriteCloser()
-	wn, err := frame.WriteTo(wc)
-	wc.Close()
-
-	written := int(wn - frameStableBufSize)
-	if written < 0 {
-		written = 0
+	if stream.state != nil {
+		defer func() {
+			stream.state.AddWriteLen(retWritten)
+		}()
 	}
 
-	return written, err
+	written := int(0)
+	start := 0
+	end := 0
+	size := 16 * 1024
+	for start < len(buf) {
+		end = start + size
+		if end > len(buf) {
+			end = len(buf)
+		}
+
+		frame := stream.t.NewFrame(FrameStreamData)
+		frame.SessionID = stream.writeSessionID
+		frame.Data = buf[start:end]
+		start = end
+
+		wc := stream.t.NewWriteCloser()
+		wn, err := frame.WriteTo(wc)
+		if err != nil {
+			return written, err
+		}
+		if wn > frameStableBufSize {
+			written += int(wn - frameStableBufSize)
+		}
+		err = wc.Close()
+		if err != nil {
+			return written, err
+		}
+
+		runtime.Gosched()
+	}
+
+	return written, nil
 }
 
 func (stream *streamRWC) Close() error {
@@ -237,6 +301,10 @@ func (stream *streamRWC) Cache(f *Frame) {
 		}(stream)
 	}
 	stream.readCh <- f
+}
+
+func (s *streamRWC) GetState() StreamState {
+	return *s.state
 }
 
 // todo:4 stream的生命周期管理，超时、关闭。流速控制

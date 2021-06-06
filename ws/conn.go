@@ -20,20 +20,59 @@ type frameBuf struct {
 
 // Conn 满足net.Conn协议的封装
 type Conn struct {
-	wsconn   *websocket.Conn
-	readBufs chan *frameBuf
-	currBuf  *frameBuf
+	wsconn        *websocket.Conn
+	readBufs      chan *frameBuf
+	currBuf       *frameBuf
+	writeWait     time.Duration
+	heartbeatWait time.Duration
 }
 
 // NewConn 创建新的连接
 func NewConn(wsconn *websocket.Conn) net.Conn {
 	c := &Conn{
-		wsconn:   wsconn,
-		readBufs: make(chan *frameBuf, 256),
+		wsconn:        wsconn,
+		readBufs:      make(chan *frameBuf, 256),
+		writeWait:     time.Second * 10,
+		heartbeatWait: time.Second * 15,
 	}
+	c.setHandlers()
 	go c.runDataReader()
+	go c.runPingPong()
 
 	return c
+}
+
+func (p *Conn) setHandlers() {
+	p.wsconn.SetPingHandler(func(d string) error {
+		return nil
+	})
+	p.wsconn.SetPongHandler(func(d string) error {
+		return nil
+	})
+	p.wsconn.SetCloseHandler(func(code int, d string) error {
+		p.Close()
+		return nil
+	})
+}
+
+// RunPingPong
+func (p *Conn) runPingPong() {
+	pingTicker := time.NewTicker(p.heartbeatWait)
+	defer func() {
+		pingTicker.Stop()
+		p.Close()
+	}()
+
+	for {
+		select {
+		case <-pingTicker.C:
+			p.wsconn.SetWriteDeadline(time.Now().Add(p.writeWait))
+			err := p.wsconn.WriteMessage(websocket.PingMessage, []byte{})
+			if err != nil {
+				return
+			}
+		}
+	}
 }
 
 // RunDataReader 不断读取数据包
@@ -97,7 +136,7 @@ func (p *Conn) Write(b []byte) (int, error) {
 		if end > len(b) {
 			end = len(b)
 		}
-		p.wsconn.SetWriteDeadline(time.Now().Add(time.Second * 30))
+		p.wsconn.SetWriteDeadline(time.Now().Add(p.writeWait))
 		err := p.wsconn.WriteMessage(websocket.BinaryMessage, b[pos:end])
 		if err != nil {
 			p.Close()

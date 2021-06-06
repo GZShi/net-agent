@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 )
 
 // request 发送一个RequestFrame，并等待对端返回一个ResponseFrame
@@ -11,7 +12,7 @@ func (t *tunnel) request(req *Frame) (*Frame, error) {
 	guard := make(chan *Frame)
 	_, loaded := t.respGuards.LoadOrStore(req.ID, guard)
 	if loaded {
-		return nil, errors.New("dump req.id")
+		return nil, errors.New("rpc_local_error: dumplicated req.id")
 	}
 
 	// 这个请求完毕后，就应该删除对应的guard
@@ -27,17 +28,20 @@ func (t *tunnel) request(req *Frame) (*Frame, error) {
 		return nil, err
 	}
 
-	resp := <-guard
+	select {
+	case resp := <-guard:
+		// 判断应答包是正确应答还是错误应答
+		if resp == nil {
+			return nil, errors.New("rpc_remote_error: empty response from remote")
+		}
+		if resp.Type == FrameResponseErr {
+			return nil, fmt.Errorf("rpc_remote_error: %v", string(resp.Data))
+		}
+		return resp, nil
 
-	// 判断应答包是正确应答还是错误应答
-	if resp == nil {
-		return nil, errors.New("empty response from remote")
+	case <-time.After(time.Second * 30):
+		return nil, errors.New("rpc_local_error: timeout")
 	}
-	if resp.Type == FrameResponseErr {
-		return nil, fmt.Errorf("rpc: %v", string(resp.Data))
-	}
-
-	return resp, nil
 }
 
 // ctxChunk 发起当前rpc.call时，所处的Context环境

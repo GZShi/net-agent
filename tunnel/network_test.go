@@ -11,8 +11,8 @@ import (
 func TestNetwork(t *testing.T) {
 	connC, connS := net.Pipe()
 
-	client := New(connC)
-	server := New(connS)
+	client := New(connC, true)
+	server := New(connS, true)
 	go client.Run()
 	go server.Run()
 	<-time.After(time.Millisecond * 50)

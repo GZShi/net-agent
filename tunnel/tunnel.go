@@ -16,6 +16,7 @@ type Tunnel interface {
 	Ready(func(t Tunnel))
 
 	NewStream() (Stream, uint32)
+	GetStreamStates() []StreamState
 	FindStreamBySID(uint32) (Stream, error)
 	SendJSON(Context, string, interface{}, interface{}) error
 	SendText(Context, string, string) (string, error)
@@ -27,11 +28,12 @@ type Tunnel interface {
 }
 
 // New 创建
-func New(conn net.Conn) Tunnel {
+func New(conn net.Conn, logStreamState bool) Tunnel {
 	return &tunnel{
-		idSequece: 1,
-		_conn:     conn,
-		pongChan:  make(chan int, 5),
+		idSequece:      1,
+		_conn:          conn,
+		pongChan:       make(chan int, 5),
+		logStreamState: logStreamState,
 	}
 }
 
@@ -49,6 +51,10 @@ type tunnel struct {
 	readyFunc    func(t Tunnel)
 	acceptGuards sync.Map
 	pongChan     chan int
+
+	logStreamState bool
+	historyStreams []*streamRWC
+	historyLock    sync.RWMutex
 }
 
 type frameGuard struct {
