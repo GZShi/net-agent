@@ -118,7 +118,10 @@ func (stream *streamRWC) Read(buf []byte) (retReaded int, retErr error) {
 
 	if stream.state != nil {
 		defer func() {
-			stream.state.AddReadLen(retReaded)
+			if retReaded > 0 {
+				stream.state.AddReadLen(retReaded)
+				stream.state.SetFirstReadBytes(buf)
+			}
 		}()
 	}
 
@@ -200,7 +203,10 @@ func (stream *streamRWC) Write(buf []byte) (retWritten int, retErr error) {
 
 	if stream.state != nil {
 		defer func() {
-			stream.state.AddWriteLen(retWritten)
+			if retWritten > 0 {
+				stream.state.AddWriteLen(retWritten)
+				stream.state.SetFirstWriteBytes(buf)
+			}
 		}()
 	}
 
